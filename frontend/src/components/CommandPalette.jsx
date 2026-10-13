@@ -1,14 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore.js';
-import { useTheme } from '../hooks/useTheme.js';
 import { Icon } from './ui.jsx';
 import { api } from '../lib/api.js';
 
 export default function CommandPalette() {
   const navigate = useNavigate();
   const { cmdOpen, setCmdOpen, setCoachOpen } = useStore();
-  const { resolvedTheme, toggleTheme } = useTheme();
 
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -78,14 +76,6 @@ export default function CommandPalette() {
       action: () => setCoachOpen(true),
     },
     {
-      id: 'act-theme',
-      group: 'Quick Actions',
-      label: `Switch to ${resolvedTheme === 'dark' ? 'Light' : 'Dark'} Mode`,
-      icon: resolvedTheme === 'dark' ? 'sun' : 'moon',
-      badge: 'Theme',
-      action: () => toggleTheme(),
-    },
-    {
       id: 'act-workout',
       group: 'Quick Actions',
       label: 'Start Today’s Workout Session',
@@ -101,7 +91,7 @@ export default function CommandPalette() {
       badge: 'Nutrition',
       action: () => navigate('/nutrition'),
     },
-  ], [navigate, setCoachOpen, resolvedTheme, toggleTheme]);
+  ], [navigate, setCoachOpen]);
 
   // Filter commands and merge with exercise matches
   const items = useMemo(() => {

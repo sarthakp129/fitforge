@@ -16,7 +16,7 @@ import { Heatmap, Sparkline } from './Charts.jsx';
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const { profile, derived, user, handleError, refreshAiStatus, toast, setCoachOpen } = useStore();
+  const { profile, derived, user, handleError, refreshAiStatus, toast, setCoachOpen, setCmdOpen } = useStore();
   const [stats, setStats] = useState(null);
   const [daily, setDaily] = useState(null);
   const [next, setNext] = useState(null);
@@ -115,6 +115,27 @@ export default function Dashboard() {
               </span>
               <Button variant="ghost" size="sm" onClick={logWeight}><Icon name="plus" size={14} /> Weigh-in</Button>
             </div>
+          </div>
+        </Reveal>
+
+        {/* --------------------------- quick actions ------------------------ */}
+        <Reveal delay={30}>
+          <div className="quick-actions">
+            <Button variant="ember" size="sm" onClick={() => navigate('/training')}>
+              <Icon name="play" size={14} /> Start workout
+            </Button>
+            <Button variant="soft" size="sm" onClick={() => navigate('/nutrition')}>
+              <Icon name="flame" size={14} /> Log meal
+            </Button>
+            <Button variant="ghost" size="sm" onClick={logWeight}>
+              <Icon name="plus" size={14} /> Log weigh-in
+            </Button>
+            <Button variant="soft" size="sm" onClick={() => setCoachOpen(true)}>
+              <Icon name="spark" size={14} /> Ask coach
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setCmdOpen(true)} title="Press ⌘K or Ctrl+K anywhere">
+              <Icon name="search" size={14} /> Search <span className="kbd" style={{ fontSize: '0.72rem', marginLeft: 4 }}>⌘K</span>
+            </Button>
           </div>
         </Reveal>
 

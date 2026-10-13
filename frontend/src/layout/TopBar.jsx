@@ -5,7 +5,6 @@ import ScrollProgress from './ScrollProgress.jsx';
 import { Icon, Chip } from '../components/ui.jsx';
 import { nf } from '../lib/format.js';
 import useStore from '../store/useStore.js';
-import { useTheme } from '../hooks/useTheme.js';
 
 const LINKS = [
   { to: '/dashboard', label: 'Dashboard', icon: 'grid' },
@@ -19,7 +18,6 @@ const LINKS = [
 export default function TopBar() {
   const navigate = useNavigate();
   const { setCmdOpen } = useStore();
-  const { resolvedTheme, toggleTheme } = useTheme();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -70,19 +68,10 @@ export default function TopBar() {
             >
               <Icon name="search" size={16} />
             </button>
-            <button
-              type="button"
-              className="nav-tool-btn"
-              onClick={toggleTheme}
-              aria-label={`Toggle theme (currently ${resolvedTheme})`}
-              title={`Switch to ${resolvedTheme === 'dark' ? 'light' : 'dark'} mode`}
-            >
-              <Icon name={resolvedTheme === 'dark' ? 'sun' : 'moon'} size={16} />
-            </button>
             <UserMenu />
           </div>
 
-          {/* mobile: quick search + theme + avatar */}
+          {/* mobile: quick search + avatar */}
           <div className="row gap-8 show-mobile">
             <button
               type="button"
@@ -91,14 +80,6 @@ export default function TopBar() {
               aria-label="Search"
             >
               <Icon name="search" size={16} />
-            </button>
-            <button
-              type="button"
-              className="nav-tool-btn"
-              onClick={toggleTheme}
-              aria-label="Toggle theme"
-            >
-              <Icon name={resolvedTheme === 'dark' ? 'sun' : 'moon'} size={16} />
             </button>
             <UserMenu />
           </div>

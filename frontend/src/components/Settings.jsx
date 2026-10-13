@@ -6,11 +6,9 @@ import { Card, CardHead, Button, Chip, Field, Input, Textarea, Icon, Reveal, Spi
 import { SliderField, WheelPicker, TileGroup, PasswordInput } from './Controls.jsx';
 import { dateForAge, ageFromDate } from '../lib/format.js';
 import useScrollSpy from '../hooks/useScrollSpy.js';
-import useTheme from '../hooks/useTheme.js';
 
 const SECTIONS = [
   { id: 'sec-profile', label: 'Profile' },
-  { id: 'sec-appearance', label: 'Appearance' },
   { id: 'sec-ai', label: 'AI & budget' },
   { id: 'sec-account', label: 'Account' },
 ];
@@ -20,7 +18,6 @@ export default function Settings() {
     profile, derived, options, saveProfile, handleError, toast, logout,
     aiStatus, refreshAiStatus, setBudget, user,
   } = useStore();
-  const { theme, setTheme } = useTheme();
 
   const [form, setForm] = useState({ ...profile });
   const [saving, setSaving] = useState(false);
@@ -208,36 +205,6 @@ export default function Settings() {
                 <Button type="button" variant="ghost" onClick={() => setForm({ ...profile })} disabled={saving}>Reset</Button>
               </div>
             </form>
-          </Card>
-        </Reveal>
-
-        {/* ----------------------------- appearance ------------------------- */}
-        <Reveal>
-          <Card solid className="card-pad-lg stack gap-16" id="sec-appearance">
-            <CardHead
-              eyebrow="Theme"
-              title="Appearance"
-              subtitle="Sculpted neumorphic material designed for daylight and the gym floor."
-            />
-            <div className="span-all">
-              <span className="label">Interface theme</span>
-              <div style={{ marginTop: 8 }}>
-                <TileGroup
-                  cols={3}
-                  value={theme}
-                  onChange={setTheme}
-                  options={[
-                    { value: 'light', label: 'Light material', desc: 'Sculpted soft slate' },
-                    { value: 'dark', label: 'Dark glass', desc: 'Deep low-light material' },
-                    { value: 'system', label: 'System match', desc: 'Automatic sync' },
-                  ]}
-                />
-              </div>
-            </div>
-            <div className="tiny muted row gap-8" style={{ marginTop: 4 }}>
-              <Icon name="spark" size={14} style={{ color: 'var(--ember)' }} />
-              <span>Keyboard shortcut: Press <kbd className="cmd-key">⌘K</kbd> or <kbd className="cmd-key">Ctrl+K</kbd> anywhere to open the Command Palette.</span>
-            </div>
           </Card>
         </Reveal>
 
