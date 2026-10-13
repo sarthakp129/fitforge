@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import api, { getToken, setToken, ApiError } from '../lib/api.js';
 
 const emptyProfile = {
-  sex: 'other', birth_date: '', height_cm: null, weight_kg: null, body_fat_pct: null,
+  sex: 'male', birth_date: '', height_cm: null, weight_kg: null, body_fat_pct: null,
   target_weight_kg: null, activity_level: 'moderate', goal: 'recomp', experience: 'intermediate',
   days_per_week: 4, session_minutes: 60, equipment: 'full_gym', injuries: '', diet_pref: 'omnivore',
   allergies: '', focus_areas: '', sleep_hours: 7, notes: '',

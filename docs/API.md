@@ -75,7 +75,7 @@ Partial update. Every field is validated and clamped:
 
 | Field | Type | Range / allowed |
 |---|---|---|
-| `sex` | enum | `male`, `female`, `other` |
+| `sex` | enum | `male`, `female` |
 | `birth_date` | date | `YYYY-MM-DD` |
 | `height_cm` | number | 120–230 |
 | `weight_kg` | number | 35–250 |

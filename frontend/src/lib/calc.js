@@ -32,11 +32,10 @@ const round = (n, p = 0) => {
 };
 
 /** Mifflin-St Jeor BMR (kcal/day). */
-export function bmr({ sex = 'other', weight_kg, height_cm, age = 30 }) {
+export function bmr({ sex = 'male', weight_kg, height_cm, age = 30 }) {
   const base = 10 * clamp(weight_kg, 35, 250) + 6.25 * clamp(height_cm, 120, 230) - 5 * clamp(age, 14, 95);
-  if (sex === 'male') return round(base + 5);
   if (sex === 'female') return round(base - 161);
-  return round(base - 78);
+  return round(base + 5);
 }
 
 export function tdee(profile) {

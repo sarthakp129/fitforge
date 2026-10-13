@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS profiles (
   user_id        INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-  sex            TEXT DEFAULT 'other',
+  sex            TEXT DEFAULT 'male',
   birth_date     TEXT,
   height_cm      REAL,
   weight_kg      REAL,

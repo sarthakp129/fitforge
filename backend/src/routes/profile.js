@@ -9,7 +9,7 @@ const router = Router();
 router.use(auth);
 
 const FIELDS = {
-  sex: (v) => ['male', 'female', 'other'].includes(v) ? v : undefined,
+  sex: (v) => ['male', 'female'].includes(v) ? v : undefined,
   birth_date: (v) => /^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : undefined,
   height_cm: (v) => v === '' || v == null ? null : clamp(Number(v), 120, 230),
   weight_kg: (v) => v === '' || v == null ? null : clamp(Number(v), 35, 250),

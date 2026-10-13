@@ -174,13 +174,12 @@ export default function Onboarding({ onDone }) {
                     <span className="label">Sex at birth</span>
                     <div style={{ marginTop: 8 }}>
                       <TileGroup
-                        cols={3}
-                        value={form.sex || 'other'}
+                        cols={2}
+                        value={form.sex || 'male'}
                         onChange={set('sex')}
                         options={[
                           { value: 'male', label: 'Male', desc: 'BMR +5' },
                           { value: 'female', label: 'Female', desc: 'BMR −161' },
-                          { value: 'other', label: 'Other', desc: 'midpoint' },
                         ]}
                       />
                     </div>

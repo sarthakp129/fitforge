@@ -37,14 +37,13 @@ export function ageFrom(birthDate) {
 }
 
 /** Mifflin-St Jeor BMR (kcal/day). */
-export function bmr({ sex = 'other', weight_kg, height_cm, birth_date }) {
+export function bmr({ sex = 'male', weight_kg, height_cm, birth_date }) {
   const w = clamp(weight_kg, 35, 250);
   const h = clamp(height_cm, 120, 230);
   const a = ageFrom(birth_date);
   const base = 10 * w + 6.25 * h - 5 * a;
-  if (sex === 'male') return round(base + 5);
   if (sex === 'female') return round(base - 161);
-  return round(base - 78); // average of the two equations
+  return round(base + 5);
 }
 
 export function tdee(profile) {

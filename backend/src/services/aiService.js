@@ -33,7 +33,7 @@ const availableExerciseIds = (equipment) => {
 function compactProfile(profile) {
   const t = macroTargets(profile);
   return {
-    sex: profile.sex || 'other',
+    sex: profile.sex || 'male',
     age: profile.age,
     kg: round(profile.weight_kg || 75, 1),
     cm: round(profile.height_cm || 175),

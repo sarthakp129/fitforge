@@ -160,10 +160,9 @@ export default function Settings() {
                 <div className="span-all">
                   <span className="label">Sex at birth</span>
                   <div style={{ marginTop: 8 }}>
-                    <TileGroup cols={3} value={form.sex || 'other'} onChange={setVal('sex')} options={[
+                    <TileGroup cols={2} value={form.sex || 'male'} onChange={setVal('sex')} options={[
                       { value: 'male', label: 'Male', desc: 'BMR +5' },
                       { value: 'female', label: 'Female', desc: 'BMR −161' },
-                      { value: 'other', label: 'Other', desc: 'midpoint' },
                     ]} />
                   </div>
                 </div>

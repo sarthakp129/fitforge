@@ -349,7 +349,7 @@ export default function Landing() {
                   <div>
                     <span className="eyebrow">Biological Sex</span>
                     <div className="row gap-6" style={{ marginTop: 8 }}>
-                      {['male', 'female', 'other'].map((s) => (
+                      {['male', 'female'].map((s) => (
                         <Chip
                           key={s}
                           active={calcSex === s}
