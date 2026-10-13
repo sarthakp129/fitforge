@@ -35,7 +35,7 @@ export const config = {
   port: num(process.env.PORT, 8080),
   host: str('HOST', '0.0.0.0'),
 
-  dataDir: str('DATA_DIR', './data'),
+  dataDir: str('DATA_DIR', process.env.VERCEL ? '/tmp/data' : './data'),
   dbFile: str('DB_FILE', ''),
 
   // --- auth -------------------------------------------------------------
