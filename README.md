@@ -1,10 +1,10 @@
 # FitForge
 
-**Train. Eat. Evolve.** A self-hosted, full-stack fitness platform with a dark glass
-interface and an AI coach that is engineered to live inside a **free-tier Groq key**.
+**Train. Eat. Evolve.** A private, self-hosted strength and nutrition platform engineered with a **tactile soft-neumorphic interface** and an AI coach governed by a strict **zero-token local engine** with optional Groq LPU acceleration.
 
-Training plans, meal plans, workout logging, nutrition tracking, progress analytics and a
-coach you can ask anything — all running on your own machine, with your own data, in Docker.
+FitForge is available in two distinct design architectures:
+1. **Production Tactile Edition (`main`)**: A lightweight, offline-first, light-neumorphic system (`#e7ebf3`) with 106 green automated tests, client-side metabolic calculator, 102 coached exercises, and an Express 5 + SQLite WAL backend.
+2. **3D Interactive Concept ([`concept-3d`](https://github.com/sarthakp129/fitforge/tree/concept-3d))**: A dark Three.js/WebGL interactive scroll sequence with GSAP and Next.js App Router.
 
 ---
 
