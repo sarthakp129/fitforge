@@ -1,0 +1,1329 @@
+[
+  {
+    "id": "bench_press",
+    "name": "Barbell Bench Press",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps",
+      "front delt"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "horizontal press",
+    "compound": true
+  },
+  {
+    "id": "incline_db_press",
+    "name": "Incline Dumbbell Press",
+    "category": "push",
+    "muscles": [
+      "upper chest",
+      "front delt",
+      "triceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "incline press",
+    "compound": true
+  },
+  {
+    "id": "incline_barbell_press",
+    "name": "Incline Barbell Press",
+    "category": "push",
+    "muscles": [
+      "upper chest",
+      "front delt",
+      "triceps"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "incline press",
+    "compound": true
+  },
+  {
+    "id": "db_bench_press",
+    "name": "Dumbbell Bench Press",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps",
+      "front delt"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "horizontal press",
+    "compound": true
+  },
+  {
+    "id": "overhead_press",
+    "name": "Standing Overhead Press",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps",
+      "core"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "db_shoulder_press",
+    "name": "Seated Dumbbell Shoulder Press",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "arnold_press",
+    "name": "Arnold Press",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "intermediate",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "machine_chest_press",
+    "name": "Machine Chest Press",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "horizontal press",
+    "compound": true
+  },
+  {
+    "id": "cable_fly",
+    "name": "Cable Chest Fly",
+    "category": "push",
+    "muscles": [
+      "chest"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "fly",
+    "compound": false
+  },
+  {
+    "id": "pec_deck",
+    "name": "Pec Deck Fly",
+    "category": "push",
+    "muscles": [
+      "chest"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "fly",
+    "compound": false
+  },
+  {
+    "id": "lateral_raise",
+    "name": "Dumbbell Lateral Raise",
+    "category": "push",
+    "muscles": [
+      "side delt"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "isolation raise",
+    "compound": false
+  },
+  {
+    "id": "cable_lateral_raise",
+    "name": "Cable Lateral Raise",
+    "category": "push",
+    "muscles": [
+      "side delt"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "isolation raise",
+    "compound": false
+  },
+  {
+    "id": "rear_delt_fly",
+    "name": "Reverse Pec Deck / Rear Delt Fly",
+    "category": "pull",
+    "muscles": [
+      "rear delt",
+      "upper back"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "reverse fly",
+    "compound": false
+  },
+  {
+    "id": "face_pull",
+    "name": "Face Pull",
+    "category": "pull",
+    "muscles": [
+      "rear delt",
+      "rotator cuff",
+      "traps"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "pull",
+    "compound": false
+  },
+  {
+    "id": "tricep_pushdown",
+    "name": "Cable Triceps Pushdown",
+    "category": "push",
+    "muscles": [
+      "triceps"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "isolation extension",
+    "compound": false
+  },
+  {
+    "id": "overhead_tricep_ext",
+    "name": "Overhead Cable Triceps Extension",
+    "category": "push",
+    "muscles": [
+      "triceps"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "isolation extension",
+    "compound": false
+  },
+  {
+    "id": "skullcrusher",
+    "name": "Skullcrusher",
+    "category": "push",
+    "muscles": [
+      "triceps"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "isolation extension",
+    "compound": false
+  },
+  {
+    "id": "dips",
+    "name": "Parallel Bar Dips",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps",
+      "front delt"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "push_up",
+    "name": "Push-Up",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps",
+      "core"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "horizontal press",
+    "compound": true
+  },
+  {
+    "id": "pike_push_up",
+    "name": "Pike Push-Up",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "handstand_push_up",
+    "name": "Wall Handstand Push-Up",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": "bodyweight",
+    "level": "advanced",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "back_squat",
+    "name": "Barbell Back Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes",
+      "adductors",
+      "core"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "front_squat",
+    "name": "Front Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "upper back",
+      "core"
+    ],
+    "equipment": "barbell",
+    "level": "advanced",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "goblet_squat",
+    "name": "Goblet Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes",
+      "core"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "leg_press",
+    "name": "Leg Press",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "hack_squat",
+    "name": "Hack Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "machine",
+    "level": "intermediate",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "bulgarian_split_squat",
+    "name": "Bulgarian Split Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "dumbbell",
+    "level": "intermediate",
+    "pattern": "unilateral squat",
+    "compound": true
+  },
+  {
+    "id": "walking_lunge",
+    "name": "Walking Lunge",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "unilateral lunge",
+    "compound": true
+  },
+  {
+    "id": "step_up",
+    "name": "Weighted Step-Up",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "unilateral step",
+    "compound": true
+  },
+  {
+    "id": "leg_extension",
+    "name": "Leg Extension",
+    "category": "legs",
+    "muscles": [
+      "quads"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation extension",
+    "compound": false
+  },
+  {
+    "id": "romanian_deadlift",
+    "name": "Romanian Deadlift",
+    "category": "legs",
+    "muscles": [
+      "hamstrings",
+      "glutes",
+      "lower back"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "deadlift",
+    "name": "Conventional Deadlift",
+    "category": "legs",
+    "muscles": [
+      "posterior chain",
+      "back",
+      "traps",
+      "grip"
+    ],
+    "equipment": "barbell",
+    "level": "advanced",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "sumo_deadlift",
+    "name": "Sumo Deadlift",
+    "category": "legs",
+    "muscles": [
+      "glutes",
+      "quads",
+      "adductors",
+      "back"
+    ],
+    "equipment": "barbell",
+    "level": "advanced",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "trap_bar_deadlift",
+    "name": "Trap Bar Deadlift",
+    "category": "legs",
+    "muscles": [
+      "glutes",
+      "quads",
+      "back"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "hip_thrust",
+    "name": "Barbell Hip Thrust",
+    "category": "legs",
+    "muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "hip extension",
+    "compound": true
+  },
+  {
+    "id": "glute_bridge",
+    "name": "Glute Bridge",
+    "category": "legs",
+    "muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "hip extension",
+    "compound": false
+  },
+  {
+    "id": "lying_leg_curl",
+    "name": "Lying Leg Curl",
+    "category": "legs",
+    "muscles": [
+      "hamstrings"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "seated_leg_curl",
+    "name": "Seated Leg Curl",
+    "category": "legs",
+    "muscles": [
+      "hamstrings"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "nordic_curl",
+    "name": "Nordic Hamstring Curl",
+    "category": "legs",
+    "muscles": [
+      "hamstrings"
+    ],
+    "equipment": "bodyweight",
+    "level": "advanced",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "standing_calf_raise",
+    "name": "Standing Calf Raise",
+    "category": "legs",
+    "muscles": [
+      "calves"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation raise",
+    "compound": false
+  },
+  {
+    "id": "seated_calf_raise",
+    "name": "Seated Calf Raise",
+    "category": "legs",
+    "muscles": [
+      "calves",
+      "soleus"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation raise",
+    "compound": false
+  },
+  {
+    "id": "pull_up",
+    "name": "Pull-Up",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "biceps",
+      "upper back"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "vertical pull",
+    "compound": true
+  },
+  {
+    "id": "chin_up",
+    "name": "Chin-Up",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "biceps"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "vertical pull",
+    "compound": true
+  },
+  {
+    "id": "lat_pulldown",
+    "name": "Lat Pulldown",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "biceps"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "vertical pull",
+    "compound": true
+  },
+  {
+    "id": "assisted_pullup",
+    "name": "Assisted Pull-Up",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "biceps"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "vertical pull",
+    "compound": true
+  },
+  {
+    "id": "barbell_row",
+    "name": "Barbell Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "lats",
+      "biceps"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "db_row",
+    "name": "One-Arm Dumbbell Row",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "mid back",
+      "biceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "seated_cable_row",
+    "name": "Seated Cable Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "lats",
+      "biceps"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "chest_supported_row",
+    "name": "Chest-Supported Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "lats"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "t_bar_row",
+    "name": "T-Bar Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "lats"
+    ],
+    "equipment": "barbell",
+    "level": "intermediate",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "straight_arm_pulldown",
+    "name": "Straight-Arm Cable Pulldown",
+    "category": "pull",
+    "muscles": [
+      "lats"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "isolation pulldown",
+    "compound": false
+  },
+  {
+    "id": "barbell_curl",
+    "name": "Barbell Biceps Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps"
+    ],
+    "equipment": "barbell",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "db_curl",
+    "name": "Dumbbell Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "hammer_curl",
+    "name": "Hammer Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps",
+      "brachialis",
+      "forearms"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "incline_db_curl",
+    "name": "Incline Dumbbell Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "preacher_curl",
+    "name": "Preacher Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "face_pull_prone",
+    "name": "Prone Y-Raise",
+    "category": "pull",
+    "muscles": [
+      "lower traps",
+      "rear delt"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "scapular raise",
+    "compound": false
+  },
+  {
+    "id": "shrug",
+    "name": "Dumbbell Shrug",
+    "category": "pull",
+    "muscles": [
+      "traps"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "isolation shrug",
+    "compound": false
+  },
+  {
+    "id": "inverted_row",
+    "name": "Inverted Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "biceps"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "plank",
+    "name": "Plank",
+    "category": "core",
+    "muscles": [
+      "core",
+      "shoulders"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "anti-extension",
+    "compound": false
+  },
+  {
+    "id": "side_plank",
+    "name": "Side Plank",
+    "category": "core",
+    "muscles": [
+      "obliques",
+      "core"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "anti-lateral flexion",
+    "compound": false
+  },
+  {
+    "id": "dead_bug",
+    "name": "Dead Bug",
+    "category": "core",
+    "muscles": [
+      "core"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "anti-extension",
+    "compound": false
+  },
+  {
+    "id": "bird_dog",
+    "name": "Bird Dog",
+    "category": "core",
+    "muscles": [
+      "core",
+      "lower back",
+      "glutes"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "anti-rotation",
+    "compound": false
+  },
+  {
+    "id": "pallof_press",
+    "name": "Pallof Press",
+    "category": "core",
+    "muscles": [
+      "core",
+      "obliques"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "anti-rotation",
+    "compound": false
+  },
+  {
+    "id": "hanging_leg_raise",
+    "name": "Hanging Leg Raise",
+    "category": "core",
+    "muscles": [
+      "core",
+      "hip flexors"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "flexion",
+    "compound": false
+  },
+  {
+    "id": "cable_crunch",
+    "name": "Cable Crunch",
+    "category": "core",
+    "muscles": [
+      "abs"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "flexion",
+    "compound": false
+  },
+  {
+    "id": "ab_wheel",
+    "name": "Ab Wheel Rollout",
+    "category": "core",
+    "muscles": [
+      "core",
+      "lats"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "anti-extension",
+    "compound": false
+  },
+  {
+    "id": "russian_twist",
+    "name": "Russian Twist",
+    "category": "core",
+    "muscles": [
+      "obliques"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "rotation",
+    "compound": false
+  },
+  {
+    "id": "farmer_carry",
+    "name": "Farmer's Carry",
+    "category": "core",
+    "muscles": [
+      "grip",
+      "traps",
+      "core"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "carry",
+    "compound": true
+  },
+  {
+    "id": "suitcase_carry",
+    "name": "Suitcase Carry",
+    "category": "core",
+    "muscles": [
+      "obliques",
+      "grip",
+      "core"
+    ],
+    "equipment": "dumbbell",
+    "level": "beginner",
+    "pattern": "carry",
+    "compound": true
+  },
+  {
+    "id": "woodchop",
+    "name": "Cable Woodchop",
+    "category": "core",
+    "muscles": [
+      "obliques",
+      "core"
+    ],
+    "equipment": "cable",
+    "level": "beginner",
+    "pattern": "rotation",
+    "compound": false
+  },
+  {
+    "id": "clean",
+    "name": "Power Clean",
+    "category": "full",
+    "muscles": [
+      "full body",
+      "posterior chain"
+    ],
+    "equipment": "barbell",
+    "level": "advanced",
+    "pattern": "olympic lift",
+    "compound": true
+  },
+  {
+    "id": "snatch",
+    "name": "Power Snatch",
+    "category": "full",
+    "muscles": [
+      "full body"
+    ],
+    "equipment": "barbell",
+    "level": "advanced",
+    "pattern": "olympic lift",
+    "compound": true
+  },
+  {
+    "id": "kb_swing",
+    "name": "Kettlebell Swing",
+    "category": "full",
+    "muscles": [
+      "glutes",
+      "hamstrings",
+      "core"
+    ],
+    "equipment": "kettlebell",
+    "level": "beginner",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "thruster",
+    "name": "Dumbbell Thruster",
+    "category": "full",
+    "muscles": [
+      "quads",
+      "shoulders",
+      "core"
+    ],
+    "equipment": "dumbbell",
+    "level": "intermediate",
+    "pattern": "squat to press",
+    "compound": true
+  },
+  {
+    "id": "db_complex",
+    "name": "Dumbbell Complex (RDL + Row + Press)",
+    "category": "full",
+    "muscles": [
+      "full body"
+    ],
+    "equipment": "dumbbell",
+    "level": "intermediate",
+    "pattern": "complex",
+    "compound": true
+  },
+  {
+    "id": "battle_ropes",
+    "name": "Battle Ropes",
+    "category": "conditioning",
+    "muscles": [
+      "shoulders",
+      "arms",
+      "core"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "rowing_machine",
+    "name": "Rowing Ergometer",
+    "category": "conditioning",
+    "muscles": [
+      "full body"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "assault_bike",
+    "name": "Assault Bike Sprints",
+    "category": "conditioning",
+    "muscles": [
+      "full body"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "treadmill_intervals",
+    "name": "Treadmill Intervals",
+    "category": "conditioning",
+    "muscles": [
+      "legs"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "incline_walk",
+    "name": "Incline Treadmill Walk",
+    "category": "conditioning",
+    "muscles": [
+      "legs"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "steady state",
+    "compound": false
+  },
+  {
+    "id": "jump_rope",
+    "name": "Jump Rope",
+    "category": "conditioning",
+    "muscles": [
+      "calves",
+      "shoulders"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "burpee",
+    "name": "Burpee",
+    "category": "conditioning",
+    "muscles": [
+      "full body"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "box_jump",
+    "name": "Box Jump",
+    "category": "conditioning",
+    "muscles": [
+      "quads",
+      "glutes",
+      "calves"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "plyometric",
+    "compound": true
+  },
+  {
+    "id": "med_ball_slam",
+    "name": "Medicine Ball Slam",
+    "category": "conditioning",
+    "muscles": [
+      "core",
+      "lats"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "power",
+    "compound": false
+  },
+  {
+    "id": "sled_push",
+    "name": "Sled Push",
+    "category": "conditioning",
+    "muscles": [
+      "legs",
+      "core"
+    ],
+    "equipment": "machine",
+    "level": "beginner",
+    "pattern": "conditioning",
+    "compound": false
+  },
+  {
+    "id": "bodyweight_squat",
+    "name": "Bodyweight Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "squat",
+    "compound": true
+  },
+  {
+    "id": "reverse_lunge",
+    "name": "Bodyweight Reverse Lunge",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "unilateral lunge",
+    "compound": true
+  },
+  {
+    "id": "single_leg_rdl",
+    "name": "Single-Leg Romanian Deadlift",
+    "category": "legs",
+    "muscles": [
+      "hamstrings",
+      "glutes"
+    ],
+    "equipment": "bodyweight",
+    "level": "intermediate",
+    "pattern": "hip hinge",
+    "compound": true
+  },
+  {
+    "id": "wall_sit",
+    "name": "Wall Sit",
+    "category": "legs",
+    "muscles": [
+      "quads"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "isometric hold",
+    "compound": false
+  },
+  {
+    "id": "single_leg_bridge",
+    "name": "Single-Leg Glute Bridge",
+    "category": "legs",
+    "muscles": [
+      "glutes",
+      "hamstrings"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "hip extension",
+    "compound": false
+  },
+  {
+    "id": "superman",
+    "name": "Superman Hold",
+    "category": "pull",
+    "muscles": [
+      "lower back",
+      "glutes"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "scapular raise",
+    "compound": false
+  },
+  {
+    "id": "towel_row",
+    "name": "Towel / Doorframe Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "biceps"
+    ],
+    "equipment": "bodyweight",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "band_row",
+    "name": "Band Row",
+    "category": "pull",
+    "muscles": [
+      "mid back",
+      "lats",
+      "biceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "horizontal pull",
+    "compound": true
+  },
+  {
+    "id": "band_pull_apart",
+    "name": "Band Pull-Apart",
+    "category": "pull",
+    "muscles": [
+      "rear delt",
+      "upper back"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "reverse fly",
+    "compound": false
+  },
+  {
+    "id": "band_lat_pulldown",
+    "name": "Band Lat Pulldown",
+    "category": "pull",
+    "muscles": [
+      "lats",
+      "biceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "vertical pull",
+    "compound": true
+  },
+  {
+    "id": "band_curl",
+    "name": "Band Biceps Curl",
+    "category": "pull",
+    "muscles": [
+      "biceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "isolation curl",
+    "compound": false
+  },
+  {
+    "id": "band_pushdown",
+    "name": "Band Triceps Pushdown",
+    "category": "push",
+    "muscles": [
+      "triceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "isolation extension",
+    "compound": false
+  },
+  {
+    "id": "band_lateral_raise",
+    "name": "Band Lateral Raise",
+    "category": "push",
+    "muscles": [
+      "side delt"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "isolation raise",
+    "compound": false
+  },
+  {
+    "id": "band_chest_press",
+    "name": "Band Chest Press",
+    "category": "push",
+    "muscles": [
+      "chest",
+      "triceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "horizontal press",
+    "compound": true
+  },
+  {
+    "id": "band_overhead_press",
+    "name": "Band Overhead Press",
+    "category": "push",
+    "muscles": [
+      "shoulders",
+      "triceps"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "vertical press",
+    "compound": true
+  },
+  {
+    "id": "band_squat",
+    "name": "Band Squat",
+    "category": "legs",
+    "muscles": [
+      "quads",
+      "glutes"
+    ],
+    "equipment": "band",
+    "level": "beginner",
+    "pattern": "squat",
+    "compound": true
+  }
+]

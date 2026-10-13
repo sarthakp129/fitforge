@@ -1,0 +1,214 @@
+/* ============================================================================
+   tokens.css — NEUMORPHIC design system (light + dark), single light source.
+
+   Depth is meaning here, not decoration:
+     raised  = interactive / primary        (button, card, fab)
+     inset   = receptive / contains input   (fields, wells, tracks, pressed)
+     flat    = static text & hairlines
+   Light always comes from the top-left; every shadow pair follows that rule,
+   which is what makes the surface read as one continuous material.
+
+   Contrast: text colours chosen ≥ 4.5:1 on the neumorphic base of each theme.
+   Accent (ember) is used only for decisions: primary actions, progress, PRs.
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* one uniform material colour — neumorphism has no "card colour" */
+  --bg: #e7ebf3;
+  --surface: var(--bg);
+  --surface-2: #dfe4ee;          /* slightly deeper well tint */
+  --glass: var(--bg);             /* legacy aliases kept for components */
+  --glass-hover: #eef1f8;
+  --glass-strong: #eaedf5;
+  --solid: var(--bg);
+
+  /* hairlines (tables, lists) — shadows do the rest */
+  --line: rgba(35, 43, 56, 0.10);
+  --line-2: rgba(35, 43, 56, 0.06);
+  --line-hover: rgba(35, 43, 56, 0.18);
+
+  /* text */
+  --text: #232b38;
+  --text-2: #333d4d;
+  --muted: #5c6878;
+  --faint: #667282;
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --muted-2: var(--faint);
+
+  /* accents — deepened for contrast on the light material */
+  --ember: #e8481f;
+  --ember-hover: #c93a12;
+  --ember-soft: rgba(232, 72, 31, 0.12);
+  --ember-text: #c93a12;
+  --teal: #0f9e8e;
+  --teal-soft: rgba(15, 158, 142, 0.12);
+  --teal-text: #0b7c70;
+  --violet: #6467e8;
+  --violet-soft: rgba(100, 103, 232, 0.12);
+  --violet-text: #4c4fd0;
+  --amber: #d9930a;
+  --amber-soft: rgba(217, 147, 10, 0.14);
+  --amber-text: #a06c00;
+  --rose: #e5484d;
+  --rose-soft: rgba(229, 72, 77, 0.12);
+  --rose-text: #c5303a;
+  --ok: #2f9e44;
+  --ok-soft: rgba(47, 158, 68, 0.12);
+  --ok-text: #23803a;
+  --lime: #66a80f;
+
+  --macro-calories: var(--ember);
+  --macro-protein: var(--teal);
+  --macro-carbs: var(--violet);
+  --macro-fat: var(--amber);
+
+  /* ---- the material: shadow pairs (light top-left, dark bottom-right) ---- */
+  --sh-raise: 9px 9px 18px rgba(163, 177, 198, 0.55), -9px -9px 18px rgba(255, 255, 255, 0.9);
+  --sh-raise-sm: 4px 4px 9px rgba(163, 177, 198, 0.5), -4px -4px 9px rgba(255, 255, 255, 0.85);
+  --sh-raise-lg: 16px 16px 34px rgba(163, 177, 198, 0.6), -16px -16px 34px rgba(255, 255, 255, 0.95);
+  --sh-inset: inset 5px 5px 10px rgba(163, 177, 198, 0.5), inset -5px -5px 10px rgba(255, 255, 255, 0.85);
+  --sh-inset-sm: inset 3px 3px 6px rgba(163, 177, 198, 0.45), inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+  --sh-press: inset 4px 4px 9px rgba(163, 177, 198, 0.55), inset -4px -4px 9px rgba(255, 255, 255, 0.8);
+  --groove-line: linear-gradient(180deg, rgba(163, 177, 198, 0.55), rgba(255, 255, 255, 0.9));
+  --ridge-line: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(163, 177, 198, 0.45));
+  --shadow-sm: var(--sh-raise-sm);
+  --shadow: var(--sh-raise);
+  --shadow-lg: var(--sh-raise-lg);
+
+  /* semantic fills */
+  --btn-primary-bg: linear-gradient(145deg, #ff6a3d, #d43c14);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-glow: 5px 5px 12px rgba(163, 177, 198, 0.6), -5px -5px 12px rgba(255, 255, 255, 0.85), 0 2px 10px rgba(232, 72, 31, 0.35);
+  --bubble-user-bg: linear-gradient(145deg, #ff6a3d, #d43c14);
+  --bubble-user-fg: #ffffff;
+  --chip-active-bg: var(--surface-2);
+  --chip-active-fg: var(--text);
+  --pill-active-bg: var(--bg);
+  --mark-bg: var(--bg);
+  --nav-bg: var(--bg);
+  --nav-bg-scrolled: var(--bg);
+  --modal-bg: var(--bg);
+  --toast-bg: var(--bg);
+  --toast-fg: var(--text);
+  --field-bg: var(--bg);
+  --row-bg: var(--bg);
+  --row-hover: rgba(255, 255, 255, 0.5);
+  --track: var(--surface-2);
+  --scrim: rgba(35, 43, 56, 0.45);
+  --skeleton-a: var(--surface-2);
+  --skeleton-b: #e9edf5;
+  --selection: rgba(232, 72, 31, 0.25);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235C6878' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  --glow-1: transparent; --glow-2: transparent; --glow-3: transparent;
+
+  /* shape */
+  --radius: 22px;
+  --radius-sm: 14px;
+  --radius-xs: 10px;
+  --radius-pill: 999px;
+
+  /* motion */
+  --t-fast: 140ms;
+  --t-med: 220ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  /* layout + type */
+  --nav-h: 68px;
+  --content-w: 1520px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* sculpted deep slate neumorphism */
+  --bg: #141720;
+  --surface: var(--bg);
+  --surface-2: #1b202c;
+  --glass: var(--bg);
+  --glass-hover: #1f2533;
+  --glass-strong: #242c3c;
+  --solid: var(--bg);
+
+  /* hairlines */
+  --line: rgba(255, 255, 255, 0.08);
+  --line-2: rgba(255, 255, 255, 0.04);
+  --line-hover: rgba(255, 255, 255, 0.16);
+
+  /* text */
+  --text: #f1f4fa;
+  --text-2: #d3dce8;
+  --muted: #8594a8;
+  --faint: #5a687d;
+  --ink: var(--text);
+  --ink-2: var(--text-2);
+  --muted-2: var(--faint);
+
+  /* accents */
+  --ember: #ff5722;
+  --ember-hover: #ff7043;
+  --ember-soft: rgba(255, 87, 34, 0.18);
+  --ember-text: #ff7043;
+  --teal: #14b8a6;
+  --teal-soft: rgba(20, 184, 166, 0.18);
+  --teal-text: #2dd4bf;
+  --violet: #818cf8;
+  --violet-soft: rgba(129, 140, 248, 0.18);
+  --violet-text: #a5b4fc;
+  --amber: #f59e0b;
+  --amber-soft: rgba(245, 158, 11, 0.18);
+  --amber-text: #fbbf24;
+  --rose: #f43f5e;
+  --rose-soft: rgba(244, 63, 94, 0.18);
+  --rose-text: #fb7185;
+  --ok: #22c55e;
+  --ok-soft: rgba(34, 197, 94, 0.18);
+  --ok-text: #4ade80;
+  --lime: #84cc16;
+
+  /* shadow pairs in dark: top-left soft glow, bottom-right deep shadow */
+  --sh-raise: 8px 8px 18px rgba(0, 0, 0, 0.65), -8px -8px 18px rgba(35, 45, 62, 0.35);
+  --sh-raise-sm: 4px 4px 10px rgba(0, 0, 0, 0.55), -4px -4px 10px rgba(35, 45, 62, 0.3);
+  --sh-raise-lg: 16px 16px 36px rgba(0, 0, 0, 0.75), -16px -16px 36px rgba(35, 45, 62, 0.4);
+  --sh-inset: inset 5px 5px 10px rgba(0, 0, 0, 0.65), inset -5px -5px 10px rgba(35, 45, 62, 0.35);
+  --sh-inset-sm: inset 3px 3px 6px rgba(0, 0, 0, 0.55), inset -3px -3px 6px rgba(35, 45, 62, 0.3);
+  --sh-press: inset 4px 4px 9px rgba(0, 0, 0, 0.7), inset -4px -4px 9px rgba(35, 45, 62, 0.35);
+  --groove-line: linear-gradient(180deg, rgba(0, 0, 0, 0.6), rgba(35, 45, 62, 0.4));
+  --ridge-line: linear-gradient(180deg, rgba(35, 45, 62, 0.45), rgba(0, 0, 0, 0.65));
+
+  /* semantic fills */
+  --btn-primary-bg: linear-gradient(145deg, #ff6a3d, #d43c14);
+  --btn-primary-fg: #ffffff;
+  --btn-primary-glow: 5px 5px 14px rgba(0, 0, 0, 0.7), -5px -5px 14px rgba(35, 45, 62, 0.4), 0 2px 12px rgba(255, 87, 34, 0.45);
+  --bubble-user-bg: linear-gradient(145deg, #ff6a3d, #d43c14);
+  --bubble-user-fg: #ffffff;
+  --chip-active-bg: var(--surface-2);
+  --chip-active-fg: var(--text);
+  --pill-active-bg: var(--bg);
+  --mark-bg: var(--bg);
+  --nav-bg: var(--bg);
+  --nav-bg-scrolled: rgba(20, 23, 32, 0.92);
+  --modal-bg: var(--bg);
+  --toast-bg: #1c222e;
+  --toast-fg: var(--text);
+  --field-bg: var(--surface-2);
+  --row-bg: var(--bg);
+  --row-hover: rgba(255, 255, 255, 0.04);
+  --track: var(--surface-2);
+  --scrim: rgba(0, 0, 0, 0.7);
+  --skeleton-a: var(--surface-2);
+  --skeleton-b: #242c3c;
+  --selection: rgba(255, 87, 34, 0.3);
+  --select-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238594A8' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+.theming, .theming *, .theming *::before, .theming *::after {
+  transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out),
+    border-color 200ms var(--ease-out), fill 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out) !important;
+}

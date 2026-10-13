@@ -1,0 +1,23 @@
+{
+  "name": "fitforge-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FitForge API - training, nutrition, progress and AI-coach services (Groq-powered).",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node --no-warnings src/index.js",
+    "dev": "node --no-warnings --watch src/index.js",
+    "test": "node --no-warnings test/tokenBudget.test.js && node --no-warnings test/cacheKeys.test.js && node --no-warnings test/smoke.test.js",
+    "seed": "node scripts/seed.js",
+    "test:unit": "node --no-warnings test/tokenBudget.test.js",
+    "test:api": "node --no-warnings test/smoke.test.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}

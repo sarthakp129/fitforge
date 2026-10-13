@@ -1,0 +1,64 @@
+name: fitforge
+
+services:
+  # ------------------------------------------------------------- backend --
+  api:
+    build:
+      context: ./backend
+    image: fitforge-api:1.0.0
+    container_name: fitforge-api
+    restart: unless-stopped
+    env_file:
+      # 'required: false' means `docker compose up` still works before you have
+      # created a .env (you just won't get AI until you add GROQ_API_KEY).
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      HOST: 0.0.0.0
+      DATA_DIR: /app/data
+      # CORS is not needed when the web tier proxies /api on the same origin.
+      # Set it explicitly if you serve the SPA from somewhere else.
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+    volumes:
+      # SQLite lives here. Losing this volume loses every workout and meal.
+      - fitforge-data:/app/data
+    ports:
+      # Handy for curl/Postman. Remove this block to keep the API private.
+      - "${API_PORT:-8080}:8080"
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ------------------------------------------------------------ frontend --
+  web:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: ""
+    image: fitforge-web:1.0.0
+    container_name: fitforge-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 4s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  fitforge-data:
+    name: fitforge-data

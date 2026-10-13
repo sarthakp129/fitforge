@@ -1,0 +1,179 @@
+import { Router } from 'express';
+import { all, get, run, today } from '../db.js';
+import { auth } from '../middleware/auth.js';
+import { ApiError } from '../middleware/errors.js';
+import { clamp, round } from '../services/nutrition.js';
+import { FOODS } from '../services/planEngine.js';
+import { validDate, queryDate } from '../lib/validate.js';
+
+const router = Router();
+
+const MEALS = ['breakfast', 'lunch', 'dinner', 'snack', 'pre_workout', 'post_workout'];
+
+/* ----------------------------- food database ---------------------------- */
+
+router.get('/foods', (req, res) => {
+  const q = String(req.query.q || '').toLowerCase().trim();
+  const category = String(req.query.category || '').toLowerCase().trim();
+  let list = FOODS;
+  if (category) list = list.filter((f) => f.category === category);
+  if (q) list = list.filter((f) => `${f.name} ${f.tags.join(' ')} ${f.category}`.toLowerCase().includes(q));
+  res.json({
+    count: list.length,
+    foods: list.slice(0, 200),
+    categories: [...new Set(FOODS.map((f) => f.category))],
+  });
+});
+
+router.use(auth);
+
+/* --------------------------------- logging ------------------------------ */
+
+function macrosFromFood(food, grams) {
+  const g = clamp(Number(grams) || 0, 1, 5000);
+  return {
+    grams: g,
+    calories: round((food.kcal / 100) * g, 1),
+    protein_g: round((food.protein_g / 100) * g, 1),
+    carbs_g: round((food.carbs_g / 100) * g, 1),
+    fat_g: round((food.fat_g / 100) * g, 1),
+  };
+}
+
+router.post('/log', (req, res) => {
+  const b = req.body || {};
+  if (b.date !== undefined && !validDate(b.date)) throw new ApiError(400, 'date must be a real date in YYYY-MM-DD form.');
+  const date = validDate(b.date) ? b.date : today();
+  const meal = MEALS.includes(b.meal_type) ? b.meal_type : 'snack';
+  const name = String(b.food_name || '').trim().slice(0, 120);
+  if (!name) throw new ApiError(400, 'food_name is required.');
+
+  const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase())
+    || FOODS.find((f) => name.toLowerCase().includes(f.name.split(',')[0].toLowerCase()));
+
+  let values;
+  if (b.calories != null && Number(b.calories) > 0) {
+    values = {
+      grams: clamp(Number(b.grams) || known?.serving_g || 100, 1, 5000),
+      calories: round(Number(b.calories), 1),
+      protein_g: round(Number(b.protein_g) || 0, 1),
+      carbs_g: round(Number(b.carbs_g) || 0, 1),
+      fat_g: round(Number(b.fat_g) || 0, 1),
+    };
+  } else if (known) {
+    values = macrosFromFood(known, b.grams ?? known.serving_g);
+  } else {
+    throw new ApiError(400, 'Provide calories/macros, or use a food from the database.');
+  }
+
+  const { lastInsertRowid } = run(
+    `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    req.user.id, date, meal, name, values.grams, values.calories,
+    values.protein_g, values.carbs_g, values.fat_g, String(b.source || (known ? 'database' : 'manual')).slice(0, 20)
+  );
+  res.status(201).json({ entry: get('SELECT * FROM nutrition_logs WHERE id = ?', Number(lastInsertRowid)) });
+});
+
+/** Log many entries at once (used by "apply this meal plan to today"). */
+router.post('/log-batch', (req, res) => {
+  const b = req.body || {};
+  if (b.date !== undefined && !validDate(b.date)) throw new ApiError(400, 'date must be a real date in YYYY-MM-DD form.');
+  const date = validDate(b.date) ? b.date : today();
+  const items = Array.isArray(b.items) ? b.items.slice(0, 100) : [];
+  const created = [];
+  for (const item of items) {
+    const name = String(item.food_name || '').trim().slice(0, 120);
+    if (!name) continue;
+    const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase());
+    const values = item.calories > 0
+      ? {
+          grams: clamp(Number(item.grams) || 100, 1, 5000),
+          calories: round(Number(item.calories) || 0, 1),
+          protein_g: round(Number(item.protein_g) || 0, 1),
+          carbs_g: round(Number(item.carbs_g) || 0, 1),
+          fat_g: round(Number(item.fat_g) || 0, 1),
+        }
+      : known
+        ? macrosFromFood(known, item.grams ?? known.serving_g)
+        : null;
+    if (!values) continue;
+    const { lastInsertRowid } = run(
+      `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      req.user.id, date, MEALS.includes(item.meal_type) ? item.meal_type : 'snack',
+      name, values.grams, values.calories, values.protein_g, values.carbs_g, values.fat_g,
+      String(item.source || 'plan').slice(0, 20)
+    );
+    created.push(Number(lastInsertRowid));
+  }
+  res.status(201).json({ created: created.length, ids: created });
+});
+
+router.delete('/log/:id', (req, res) => {
+  const { changes } = run('DELETE FROM nutrition_logs WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id);
+  if (!changes) throw new ApiError(404, 'Entry not found.');
+  res.json({ ok: true });
+});
+
+router.get('/daily', (req, res) => {
+  const date = queryDate(req.query.date, today());
+  const entries = all(
+    'SELECT * FROM nutrition_logs WHERE user_id = ? AND date = ? ORDER BY id', req.user.id, date);
+  const totals = entries.reduce(
+    (a, e) => ({
+      calories: a.calories + e.calories,
+      protein_g: a.protein_g + e.protein_g,
+      carbs_g: a.carbs_g + e.carbs_g,
+      fat_g: a.fat_g + e.fat_g,
+    }),
+    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+  );
+  const byMeal = {};
+  for (const m of MEALS) byMeal[m] = [];
+  for (const e of entries) (byMeal[e.meal_type] ||= []).push(e);
+
+  const profile = get('SELECT * FROM profiles WHERE user_id = ?', req.user.id);
+  res.json({ date, entries, by_meal: byMeal, totals: roundAll(totals), profile });
+});
+
+const roundAll = (t) => ({
+  calories: round(t.calories),
+  protein_g: round(t.protein_g, 1),
+  carbs_g: round(t.carbs_g, 1),
+  fat_g: round(t.fat_g, 1),
+});
+
+router.get('/range', (req, res) => {
+  const days = clamp(Number(req.query.days) || 14, 1, 365);
+  const rows = all(
+    `SELECT date,
+            SUM(calories) AS calories, SUM(protein_g) AS protein_g,
+            SUM(carbs_g) AS carbs_g, SUM(fat_g) AS fat_g, COUNT(*) AS entries
+     FROM nutrition_logs WHERE user_id = ? AND date >= date('now', ?)
+     GROUP BY date ORDER BY date`,
+    req.user.id, `-${days} day`
+  );
+  res.json({ days, series: rows.map((r) => ({ ...r, calories: round(r.calories) })) });
+});
+
+router.post('/copy-day', (req, res) => {
+  const { from, to } = req.body || {};
+  if (!from || !to) throw new ApiError(400, 'Both "from" and "to" dates are required.');
+  if (!validDate(from) || !validDate(to)) throw new ApiError(400, 'from/to must be real dates in YYYY-MM-DD form.');
+  const src = all('SELECT * FROM nutrition_logs WHERE user_id = ? AND date = ?', req.user.id, String(from).slice(0, 10));
+  if (!src.length) throw new ApiError(404, 'Nothing logged on the source date.');
+  let n = 0;
+  for (const e of src) {
+    run(
+      `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'copied')`,
+      req.user.id, to, e.meal_type, e.food_name, e.grams,
+      e.calories, e.protein_g, e.carbs_g, e.fat_g
+    );
+    n++;
+  }
+  res.json({ ok: true, copied: n });
+});
+
+export default router;
