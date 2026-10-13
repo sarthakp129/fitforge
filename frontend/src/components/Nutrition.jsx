@@ -21,6 +21,14 @@ const MEALS = [
   { id: 'snack', label: 'Snacks' },
 ];
 
+function cuisineBadge(food) {
+  if (!food) return null;
+  const hay = `${food.name} ${(food.tags || []).join(' ')}`.toLowerCase();
+  if (hay.includes('north indian')) return { label: 'North Indian', tone: 'ember', icon: '🍛' };
+  if (hay.includes('south indian')) return { label: 'South Indian', tone: 'teal', icon: '🥥' };
+  return null;
+}
+
 export default function Nutrition() {
   const { derived, handleError, toast, refreshAiStatus } = useStore();
   const [tab, setTab] = useState('today');
@@ -29,6 +37,9 @@ export default function Nutrition() {
   const [range, setRange] = useState([]);
   const [plan, setPlan] = useState(null);
   const [planMeta, setPlanMeta] = useState(null);
+  const [selectedDayIdx, setSelectedDayIdx] = useState(0);
+  const [mealAlts, setMealAlts] = useState({});
+  const [cuisineFilter, setCuisineFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genState, setGenState] = useState(null);
@@ -45,6 +56,29 @@ export default function Nutrition() {
   const recorderRef = useRef(null);
   const canMic = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const speechOK = supportsSpeech();
+
+  const currentDay = useMemo(() => {
+    if (plan?.days?.length && plan.days[selectedDayIdx]) {
+      return plan.days[selectedDayIdx];
+    }
+    return {
+      day: 1,
+      day_name: 'Today',
+      theme: 'Balanced Daily Plan',
+      cuisine: 'Indian',
+      meals: plan?.meals || [],
+      totals: plan?.plan_totals || { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 },
+    };
+  }, [plan, selectedDayIdx]);
+
+  const activeMeals = currentDay.meals || plan?.meals || [];
+
+  const toggleMealAlt = (mIdx) => {
+    setMealAlts((prev) => {
+      const cur = prev[mIdx] || 0;
+      return { ...prev, [mIdx]: cur === 0 ? 1 : cur === 1 ? 2 : 0 };
+    });
+  };
 
   const targets = derived?.macros;
   const t = targets || { calories: 2200, protein_g: 150, carbs_g: 220, fat_g: 70 };
@@ -96,6 +130,15 @@ export default function Nutrition() {
     };
   }, [picked, grams]);
 
+  const displayedFoods = useMemo(() => {
+    if (cuisineFilter === 'all') return foods;
+    if (cuisineFilter === 'north') return foods.filter((f) => `${f.name} ${(f.tags || []).join(' ')}`.toLowerCase().includes('north indian'));
+    if (cuisineFilter === 'south') return foods.filter((f) => `${f.name} ${(f.tags || []).join(' ')}`.toLowerCase().includes('south indian'));
+    if (cuisineFilter === 'protein') return foods.filter((f) => f.protein_g >= 12 || (f.tags || []).includes('high protein'));
+    if (cuisineFilter === 'staple') return foods.filter((f) => (f.tags || []).includes('staple'));
+    return foods;
+  }, [foods, cuisineFilter]);
+
   const addEntry = async () => {
     const payload = picked
       ? { date, meal_type: addMeal, food_name: picked.name, grams: Number(grams) || picked.serving_g }
@@ -145,14 +188,18 @@ export default function Nutrition() {
   };
 
   const applyPlanToToday = async () => {
-    if (!plan?.meals?.length) return toast('Generate a plan first.', 'warn');
-    const items = plan.meals.flatMap((m) => m.foods.map((f) => ({
-      meal_type: mealFromName(m.name), food_name: f.name, grams: f.grams,
-      calories: f.calories, protein_g: f.protein_g, carbs_g: f.carbs_g, fat_g: f.fat_g,
-    })));
+    if (!activeMeals?.length) return toast('Generate a plan first.', 'warn');
+    const items = activeMeals.flatMap((m, mIdx) => {
+      const altIdx = mealAlts[mIdx] || 0;
+      const foods = altIdx > 0 && m.alternatives?.[altIdx - 1] ? m.alternatives[altIdx - 1] : m.foods;
+      return foods.map((f) => ({
+        meal_type: mealFromName(m.name), food_name: f.name, grams: f.grams,
+        calories: f.calories, protein_g: f.protein_g, carbs_g: f.carbs_g, fat_g: f.fat_g,
+      }));
+    });
     try {
       const res = await api.nutrition.logBatch({ date, items });
-      toast(`Logged ${res.created} items from your plan.`, 'ok');
+      toast(`Logged ${res.created} items from ${currentDay.day_name || 'your plan'}.`, 'ok');
       load();
     } catch (err) { handleError(err); }
     return undefined;
@@ -444,30 +491,106 @@ export default function Nutrition() {
                   </Card>
                 </Reveal>
 
+                {plan.days?.length > 1 && (
+                  <Reveal>
+                    <Card solid className="stack gap-12">
+                      <div className="row-between" style={{ flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                        <div>
+                          <div className="eyebrow">7-Day Meal Rotation · Varied Daily Meals</div>
+                          <div className="strong" style={{ fontSize: '1.15rem', marginTop: 2 }}>{currentDay.day_name} · {currentDay.theme}</div>
+                        </div>
+                        <div className="row gap-8">
+                          <Chip tone={currentDay.cuisine === 'North Indian' ? 'ember' : currentDay.cuisine === 'South Indian' ? 'teal' : 'violet'}>
+                            {currentDay.cuisine}
+                          </Chip>
+                          <Button variant="ghost" size="sm" onClick={applyPlanToToday}>
+                            <Icon name="check" size={13} /> Log {currentDay.day_name} to Today
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                        {plan.days.map((d, i) => (
+                          <button
+                            key={d.day_name}
+                            type="button"
+                            onClick={() => { setSelectedDayIdx(i); setMealAlts({}); }}
+                            className={`btn btn-sm ${selectedDayIdx === i ? 'btn-ember' : 'btn-ghost'}`}
+                            style={{ minWidth: 54, fontWeight: selectedDayIdx === i ? 700 : 500 }}
+                          >
+                            {d.day_name.slice(0, 3)}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="tiny muted mono">
+                        Target for {currentDay.day_name}: {nf(currentDay.totals?.calories)} kcal · P {nf(currentDay.totals?.protein_g)} g · C {nf(currentDay.totals?.carbs_g)} g · F {nf(currentDay.totals?.fat_g)} g
+                      </div>
+                    </Card>
+                  </Reveal>
+                )}
+
                 <div className="grid grid-2">
-                  {plan.meals.map((m) => (
-                    <Reveal key={m.name}>
-                      <Card className="stack gap-12" style={{ height: '100%' }}>
-                        <div className="row-between">
-                          <div>
-                            <div className="strong">{m.name}</div>
-                            <div className="tiny muted mono">{m.time} · {nf(m.calories)} kcal · P {nf(m.protein_g)} · C {nf(m.carbs_g)} · F {nf(m.fat_g)}</div>
-                          </div>
-                          <Chip tone="ghost">{pct(m.calories, plan.targets.calories)}%</Chip>
-                        </div>
-                        <div className="stack gap-6">
-                          {m.foods.map((f, i) => (
-                            <div key={i} className="row-between small" style={{ padding: '6px 0', borderBottom: '1px solid var(--line-2)' }}>
-                              <span className="flex-1">{f.name}</span>
-                              <span className="mono tiny muted">{nf(f.grams)} g</span>
-                              <span className="mono tiny strong" style={{ width: 56, textAlign: 'right' }}>{nf(f.calories)}</span>
+                  {activeMeals.map((m, mIdx) => {
+                    const altIdx = mealAlts[mIdx] || 0;
+                    const displayFoods = altIdx > 0 && m.alternatives?.[altIdx - 1] ? m.alternatives[altIdx - 1] : m.foods;
+                    const mActual = displayFoods.reduce(
+                      (a, f) => ({
+                        calories: a.calories + f.calories,
+                        protein_g: a.protein_g + f.protein_g,
+                        carbs_g: a.carbs_g + f.carbs_g,
+                        fat_g: a.fat_g + f.fat_g,
+                      }),
+                      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+                    );
+                    return (
+                      <Reveal key={`${m.name}-${mIdx}-${altIdx}`}>
+                        <Card className="stack gap-12" style={{ height: '100%' }}>
+                          <div className="row-between">
+                            <div>
+                              <div className="row gap-6" style={{ alignItems: 'center' }}>
+                                <span className="strong">{m.name}</span>
+                                {altIdx > 0 && <span className="chip chip-ember tiny" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>Option {altIdx + 1}</span>}
+                              </div>
+                              <div className="tiny muted mono">{m.time} · {nf(mActual.calories)} kcal · P {nf(mActual.protein_g)} · C {nf(mActual.carbs_g)} · F {nf(mActual.fat_g)}</div>
                             </div>
-                          ))}
-                        </div>
-                        {m.notes && <div className="tiny muted" style={{ lineHeight: 1.55 }}>{m.notes}</div>}
-                      </Card>
-                    </Reveal>
-                  ))}
+                            <div className="row gap-6" style={{ alignItems: 'center' }}>
+                              {m.alternatives?.length > 0 && (
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '3px 8px', fontSize: '0.74rem' }}
+                                  title="Rotate this meal to an alternative authentic recipe"
+                                  onClick={() => toggleMealAlt(mIdx)}
+                                >
+                                  <Icon name="refresh" size={11} /> Rotate
+                                </button>
+                              )}
+                              <Chip tone="ghost">{pct(mActual.calories, plan.targets.calories)}%</Chip>
+                            </div>
+                          </div>
+                          <div className="stack gap-6">
+                            {displayFoods.map((f, i) => {
+                              const badge = cuisineBadge(f);
+                              return (
+                                <div key={i} className="row-between small" style={{ padding: '6px 0', borderBottom: '1px solid var(--line-2)' }}>
+                                  <span className="flex-1">
+                                    {f.name}
+                                    {badge && (
+                                      <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
+                                        {badge.icon} {badge.label}
+                                      </span>
+                                    )}
+                                  </span>
+                                  <span className="mono tiny muted">{nf(f.grams)} g</span>
+                                  <span className="mono tiny strong" style={{ width: 56, textAlign: 'right' }}>{nf(f.calories)}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {m.notes && <div className="tiny muted" style={{ lineHeight: 1.55 }}>{m.notes}</div>}
+                        </Card>
+                      </Reveal>
+                    );
+                  })}
                 </div>
 
                 <div className="grid grid-2">
@@ -531,28 +654,57 @@ export default function Nutrition() {
         subtitle={`${MEALS.find((m) => m.id === addMeal)?.label || 'Snack'} · ${relativeDay(date)}`}
         wide
       >
-        <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+        <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
           <SelectMenu width={168} value={addMeal} onChange={setAddMeal} options={MEALS.map((m) => ({ value: m.id, label: m.label }))} />
           <Input placeholder="Search the food database…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" style={{ minWidth: 180 }} aria-label="Search foods" />
         </div>
 
+        <div className="row gap-6" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+          {[
+            { id: 'all', label: 'All Foods' },
+            { id: 'north', label: '🍛 North Indian' },
+            { id: 'south', label: '🥥 South Indian' },
+            { id: 'protein', label: '⚡ High Protein' },
+            { id: 'staple', label: '🌾 Staples' },
+          ].map((c) => (
+            <Chip
+              key={c.id}
+              onClick={() => setCuisineFilter(c.id)}
+              tone={cuisineFilter === c.id ? 'ember' : 'ghost'}
+              style={{ cursor: 'pointer', fontWeight: cuisineFilter === c.id ? 700 : 500 }}
+            >
+              {c.label}
+            </Chip>
+          ))}
+        </div>
+
         <div className="grid grid-side">
           <div className="stack gap-6" style={{ maxHeight: '42vh', overflowY: 'auto' }}>
-            {foods.map((f) => (
-              <button
-                key={f.name}
-                className="ex-row"
-                style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: picked?.name === f.name ? 'var(--ember-soft)' : undefined }}
-                onClick={() => { setPicked(f); setGrams(f.serving_g); setManual((m) => ({ ...m, food_name: f.name })); }}
-              >
-                <div>
-                  <div className="ex-name" style={{ fontSize: '0.9rem' }}>{f.name}</div>
-                  <div className="ex-meta"><span>per 100 g: <b>{f.kcal}</b> kcal · P <b>{f.protein_g}</b> · C <b>{f.carbs_g}</b> · F <b>{f.fat_g}</b></span></div>
-                </div>
-                <Chip tone="ghost">{f.serving_g} g</Chip>
-              </button>
-            ))}
-            {!foods.length && <Empty>No foods match “{q}”. Enter it manually on the right.</Empty>}
+            {displayedFoods.map((f) => {
+              const b = cuisineBadge(f);
+              return (
+                <button
+                  key={f.name}
+                  className="ex-row"
+                  style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: picked?.name === f.name ? 'var(--ember-soft)' : undefined }}
+                  onClick={() => { setPicked(f); setGrams(f.serving_g); setManual((m) => ({ ...m, food_name: f.name })); }}
+                >
+                  <div>
+                    <div className="ex-name" style={{ fontSize: '0.9rem' }}>
+                      {f.name}
+                      {b && (
+                        <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
+                          {b.icon} {b.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="ex-meta"><span>per 100 g: <b>{f.kcal}</b> kcal · P <b>{f.protein_g}</b> · C <b>{f.carbs_g}</b> · F <b>{f.fat_g}</b></span></div>
+                  </div>
+                  <Chip tone="ghost">{f.serving_g} g</Chip>
+                </button>
+              );
+            })}
+            {!displayedFoods.length && <Empty>No foods match “{q || cuisineFilter}”. Enter it manually on the right.</Empty>}
           </div>
 
           <div className="stack gap-12">

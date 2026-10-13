@@ -387,9 +387,11 @@ const PLANT_OK = ['carb', 'fruit', 'veg', 'fat'];
 
 const DIET_FILTERS = {
   vegan: (f) => {
-    if (PLANT_OK.includes(f.category)) return true;
     if (f.category === 'supplement') return /plant|pea|soy/i.test(f.name);
-    return f.tags.includes('vegan'); // tofu, tempeh, seitan, lentils, beans…
+    if (f.category === 'dairy') return false;
+    if (f.tags.includes('egg') || /egg|chicken|beef|salmon|tuna|cod|prawn|turkey|paneer|curd|dahi|yogurt|whey|milk/i.test(f.name)) return false;
+    if (PLANT_OK.includes(f.category)) return f.tags.includes('vegan') || !f.tags.includes('vegetarian');
+    return f.tags.includes('vegan');
   },
   vegetarian: (f) => {
     if (PLANT_OK.includes(f.category) || f.category === 'supplement') return true;
@@ -397,7 +399,7 @@ const DIET_FILTERS = {
     return f.tags.some((t) => ['vegetarian', 'vegan', 'egg'].includes(t));
   },
   pescatarian: (f) =>
-    DIET_FILTERS.vegetarian(f) || /salmon|tuna|cod|prawn|fish/i.test(f.name),
+    DIET_FILTERS.vegetarian(f) || /salmon|tuna|cod|prawn|fish/i.test(f.name) || f.tags.includes('fish'),
   omnivore: () => true,
 };
 
@@ -411,29 +413,65 @@ function foodPool(pref, allergies = '') {
   });
 }
 
-const byCategory = (pool, cat) => pool.filter((f) => f.category === cat || (cat === 'carb' && f.category === 'fruit'));
+const byCategory = (pool, cat) => pool.filter((f) => {
+  if (cat === 'protein') return f.category === 'protein' || (f.category === 'dairy' && f.protein_g >= 8);
+  if (cat === 'carb') return f.category === 'carb' || f.category === 'fruit';
+  return f.category === cat;
+});
 
 /** rotate deterministically so plans differ day to day but stay reproducible */
 let cursor = 0;
-function rotate(list, seed = 0) {
+function rotate(list, seed = 0, topCount = 5) {
   if (!list.length) return null;
-  return list[(seed + cursor++) % list.length];
+  const sliceSize = Math.min(list.length, Math.max(topCount, 3));
+  const sub = list.slice(0, sliceSize);
+  return sub[(Math.abs(seed) + cursor++) % sub.length];
 }
 
 function scaleGrams(food, targetKcal) {
-  const g = clamp((targetKcal / (food.kcal / 100)) , 10, 400);
+  const g = clamp((targetKcal / (food.kcal / 100)), 10, 400);
   return Math.round(g / 5) * 5;
 }
 
-function mealFoods(meal, pool, seed) {
+function sortPoolForMeal(pool, mealName, biasTags = []) {
+  const isBreakfast = /breakfast/i.test(mealName);
+  const isSnack = /snack|pre-training|evening/i.test(mealName);
+  const isMain = /lunch|dinner/i.test(mealName);
+
+  return [...pool].sort((a, b) => {
+    let scoreA = 0;
+    let scoreB = 0;
+
+    for (const tag of biasTags) {
+      if (a.tags.includes(tag)) scoreA += 5;
+      if (b.tags.includes(tag)) scoreB += 5;
+    }
+
+    if (isBreakfast) {
+      if (a.tags.includes('breakfast')) scoreA += 6;
+      if (b.tags.includes('breakfast')) scoreB += 6;
+    } else if (isSnack) {
+      if (a.tags.some((t) => ['snack', 'pre workout', 'hydration', 'probiotic'].includes(t))) scoreA += 6;
+      if (b.tags.some((t) => ['snack', 'pre workout', 'hydration', 'probiotic'].includes(t))) scoreB += 6;
+    } else if (isMain) {
+      if (a.tags.includes('staple')) scoreA += 4;
+      if (b.tags.includes('staple')) scoreB += 4;
+    }
+
+    return scoreB - scoreA;
+  });
+}
+
+function mealFoods(meal, pool, seed, biasTags = []) {
+  const mealPool = sortPoolForMeal(pool, meal.name, biasTags);
   const items = [];
   let kcalLeft = meal.calories;
   let proteinLeft = meal.protein_g;
 
-  const proteinSrc = rotate(byCategory(pool, 'protein'), seed);
-  const carbSrc = rotate(byCategory(pool, 'carb'), seed + 3);
-  const fatSrc = rotate(byCategory(pool, 'fat'), seed + 7);
-  const vegSrc = rotate(byCategory(pool, 'veg'), seed + 11);
+  const proteinSrc = rotate(byCategory(mealPool, 'protein'), seed, 5);
+  const carbSrc = rotate(byCategory(mealPool, 'carb'), seed + 3, 5);
+  const fatSrc = rotate(byCategory(mealPool, 'fat'), seed + 7, 4);
+  const vegSrc = rotate(byCategory(mealPool, 'veg'), seed + 11, 4);
 
   const add = (food, grams) => {
     const item = mealFoods_item(food, grams);
@@ -444,7 +482,7 @@ function mealFoods(meal, pool, seed) {
   };
 
   // 1. protein anchor — sized to the meal's protein target, not to calories
-  if (proteinSrc) add(proteinSrc, Math.round(clamp(proteinLeft / (proteinSrc.protein_g / 100), 40, 350) / 5) * 5);
+  if (proteinSrc) add(proteinSrc, Math.round(clamp(proteinLeft / (proteinSrc.protein_g / 100), 30, 350) / 5) * 5);
 
   // 2. volume/fibre, effectively free
   if (vegSrc) add(vegSrc, vegSrc.serving_g);
@@ -460,12 +498,12 @@ function mealFoods(meal, pool, seed) {
 
   // 5. close the gap: a single large carb serving caps at 600 g, so high-calorie
   //    meals need a second source. Keep topping up until within ~4%.
-  const carbs = byCategory(pool, 'carb');
-  const proteins = byCategory(pool, 'protein');
+  const carbs = byCategory(mealPool, 'carb');
+  const proteins = byCategory(mealPool, 'protein');
   for (let guard = 0; guard < 6 && kcalLeft > meal.calories * 0.04; guard++) {
     const source = proteinLeft > 8 && proteins.length
-      ? rotate(proteins, seed + guard * 3)
-      : rotate(carbs, seed + guard * 5 + 1);
+      ? rotate(proteins, seed + guard * 3 + 1, 6)
+      : rotate(carbs, seed + guard * 5 + 1, 6);
     if (!source) break;
     const grams = Math.round(clamp(kcalLeft / (source.kcal / 100), 15, 500) / 5) * 5;
     if (grams < 15) break;
@@ -478,6 +516,8 @@ function mealFoods(meal, pool, seed) {
 function mealFoods_item(food, grams) {
   return {
     name: food.name,
+    category: food.category,
+    tags: food.tags || [],
     grams,
     calories: round((food.kcal / 100) * grams),
     protein_g: round((food.protein_g / 100) * grams, 1),
@@ -486,13 +526,83 @@ function mealFoods_item(food, grams) {
   };
 }
 
+const ROTATION_DAYS = [
+  {
+    day: 1,
+    day_name: 'Monday',
+    theme: 'North Indian High-Protein & Dal',
+    cuisine: 'North Indian',
+    biasTags: ['north indian', 'staple'],
+  },
+  {
+    day: 2,
+    day_name: 'Tuesday',
+    theme: 'North Indian Power & Rajma / Roti',
+    cuisine: 'North Indian',
+    biasTags: ['north indian', 'high protein'],
+  },
+  {
+    day: 3,
+    day_name: 'Wednesday',
+    theme: 'South Indian Coastal & Fuel',
+    cuisine: 'South Indian',
+    biasTags: ['south indian', 'staple'],
+  },
+  {
+    day: 4,
+    day_name: 'Thursday',
+    theme: 'North Indian Homestyle Chole & Khichdi',
+    cuisine: 'North Indian',
+    biasTags: ['north indian', 'comfort'],
+  },
+  {
+    day: 5,
+    day_name: 'Friday',
+    theme: 'South Indian Tiffin & Sambar',
+    cuisine: 'South Indian',
+    biasTags: ['south indian', 'high protein'],
+  },
+  {
+    day: 6,
+    day_name: 'Saturday',
+    theme: 'North Indian Tandoori / Soya Sizzle',
+    cuisine: 'North Indian',
+    biasTags: ['north indian', 'high protein'],
+  },
+  {
+    day: 7,
+    day_name: 'Sunday',
+    theme: 'Pan-Indian Balanced Energy & Dosa',
+    cuisine: 'Pan-Indian',
+    biasTags: ['south indian', 'north indian'],
+  },
+];
+
+function mealNoteFor(mealName, cuisine) {
+  if (/breakfast/i.test(mealName)) {
+    return cuisine === 'South Indian'
+      ? 'Fermented staples (Idli / Dosa / Pesarattu) offer easy digestion, sustained glycogen, and probiotic gut support.'
+      : 'Front-load protein with besan chilla, sattu, eggs, or paneer — drives satiety and muscle protein synthesis early.';
+  }
+  if (/lunch/i.test(mealName)) {
+    return 'Combine whole wheat roti or basmati rice with dal/rajma/chole for a full essential amino acid complement.';
+  }
+  if (/dinner/i.test(mealName)) {
+    return 'Lean protein anchor (paneer, soya chunks, chicken curry, or khichdi) with fiber vegetables for overnight recovery.';
+  }
+  if (/pre-training/i.test(mealName)) {
+    return 'Fast-digesting clean carbs (fruit, chaas, or light oats) 60-90 min before your training session.';
+  }
+  return 'Smart snack: sprouted moong chaat, roasted chana, or sundal provides clean fiber and micronutrients.';
+}
+
 export function buildNutritionPlan(profile, opts = {}) {
   const targets = macroTargets(profile);
   const base = tdee(profile);
   const pref = profile.diet_pref || 'omnivore';
   const pool = foodPool(pref, profile.allergies);
   const goal = profile.goal || 'recomp';
-  const days = clamp(profile.days_per_week || 4, 1, 7);
+  const daysPerWeek = clamp(profile.days_per_week || 4, 1, 7);
 
   const highCal = targets.calories > 2900;
   const template = highCal
@@ -511,62 +621,81 @@ export function buildNutritionPlan(profile, opts = {}) {
       ];
 
   cursor = 0;
-  const meals = template.map((t, i) => {
-    const calories = round(targets.calories * t.pct);
-    const meal = {
-      ...t,
-      calories,
-      protein_g: round(targets.protein_g * t.pct),
-      carbs_g: round(targets.carbs_g * t.pct),
-      fat_g: round(targets.fat_g * t.pct),
-    };
-    const foods = mealFoods(meal, pool, i * 5);
-    const actual = foods.reduce(
-      (a, f) => ({
-        calories: a.calories + f.calories,
-        protein_g: a.protein_g + f.protein_g,
-        carbs_g: a.carbs_g + f.carbs_g,
-        fat_g: a.fat_g + f.fat_g,
+  const days = ROTATION_DAYS.map((dayConfig, dIdx) => {
+    const daySeed = dIdx * 19;
+    const meals = template.map((t, mIdx) => {
+      const calories = round(targets.calories * t.pct);
+      const meal = {
+        ...t,
+        calories,
+        protein_g: round(targets.protein_g * t.pct),
+        carbs_g: round(targets.carbs_g * t.pct),
+        fat_g: round(targets.fat_g * t.pct),
+      };
+
+      const foods = mealFoods(meal, pool, daySeed + mIdx * 5, dayConfig.biasTags);
+      const altFoods1 = mealFoods(meal, pool, daySeed + mIdx * 5 + 13, dayConfig.biasTags);
+      const altFoods2 = mealFoods(meal, pool, daySeed + mIdx * 5 + 27, dayConfig.biasTags);
+
+      const actual = foods.reduce(
+        (a, f) => ({
+          calories: a.calories + f.calories,
+          protein_g: a.protein_g + f.protein_g,
+          carbs_g: a.carbs_g + f.carbs_g,
+          fat_g: a.fat_g + f.fat_g,
+        }),
+        { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+      );
+
+      return {
+        name: t.name,
+        time: t.time,
+        target_calories: calories,
+        calories: round(actual.calories),
+        protein_g: round(actual.protein_g, 1),
+        carbs_g: round(actual.carbs_g, 1),
+        fat_g: round(actual.fat_g, 1),
+        foods,
+        alternatives: [altFoods1, altFoods2],
+        notes: mealNoteFor(t.name, dayConfig.cuisine),
+      };
+    });
+
+    const dayTotals = meals.reduce(
+      (a, m) => ({
+        calories: a.calories + m.calories,
+        protein_g: a.protein_g + m.protein_g,
+        carbs_g: a.carbs_g + m.carbs_g,
+        fat_g: a.fat_g + m.fat_g,
       }),
       { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
     );
+
     return {
-      name: t.name,
-      time: t.time,
-      target_calories: calories,
-      calories: round(actual.calories),
-      protein_g: round(actual.protein_g, 1),
-      carbs_g: round(actual.carbs_g, 1),
-      fat_g: round(actual.fat_g, 1),
-      foods,
-      notes: i === 0
-        ? 'Front-load protein — it drives satiety and muscle protein synthesis for the rest of the day.'
-        : t.name === 'Pre-training'
-          ? 'Low fat, easy carbs, 60-90 min before training.'
-          : t.name === 'Evening'
-            ? 'Slow-digesting protein before bed supports overnight recovery.'
-            : 'Vegetables first, protein second, starch last — the order matters for fullness.',
+      day: dayConfig.day,
+      day_name: dayConfig.day_name,
+      theme: dayConfig.theme,
+      cuisine: dayConfig.cuisine,
+      meals,
+      totals: {
+        calories: round(dayTotals.calories),
+        protein_g: round(dayTotals.protein_g, 1),
+        carbs_g: round(dayTotals.carbs_g, 1),
+        fat_g: round(dayTotals.fat_g, 1),
+      },
     };
   });
 
-  const totals = meals.reduce(
-    (a, m) => ({
-      calories: a.calories + m.calories,
-      protein_g: a.protein_g + m.protein_g,
-      carbs_g: a.carbs_g + m.carbs_g,
-      fat_g: a.fat_g + m.fat_g,
-    }),
-    { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
-  );
-
-  const grocery = [...new Set(meals.flatMap((m) => m.foods.map((f) => f.name)))].sort();
+  const allFoods = days.flatMap((d) => d.meals.flatMap((m) => m.foods.map((f) => f.name)));
+  const grocery = [...new Set(allFoods)].sort();
 
   return {
     meta: {
-      name: `FitForge ${GOALS[goal]?.label || goal} Nutrition`,
+      name: `FitForge ${GOALS[goal]?.label || goal} Indian Nutrition`,
       kind: 'nutrition',
       diet_pref: pref,
       goal,
+      cuisine: 'North & South Indian 7-Day Rotation',
       generated_at: new Date().toISOString(),
     },
     targets: {
@@ -581,36 +710,33 @@ export function buildNutritionPlan(profile, opts = {}) {
     },
     rationale: `${round(bmr(profile))} kcal BMR (Mifflin-St Jeor) × ${profile.activity_level || 'moderate'} activity = ${base} kcal maintenance. ` +
       `A ${Math.round(((targets.calories - base) / base) * 100)}% adjustment targets ${GOALS[goal]?.label || goal} at about ${GOALS[goal]?.rate || 'steady'} progress, ` +
-      `with protein at ${round(targets.protein_g / clamp(profile.weight_kg, 35, 250), 1)} g/kg to protect lean mass.`,
-    meals,
-    plan_totals: {
-      calories: round(totals.calories),
-      protein_g: round(totals.protein_g, 1),
-      carbs_g: round(totals.carbs_g, 1),
-      fat_g: round(totals.fat_g, 1),
-    },
+      `with protein at ${round(targets.protein_g / clamp(profile.weight_kg, 35, 250), 1)} g/kg to protect lean mass. ` +
+      `Structured with a 7-day varied Indian diet rotation (North Indian staples with South Indian variety).`,
+    days,
+    meals: days[0].meals,
+    plan_totals: days[0].totals,
     training_day_adjustments: [
-      `Training days (${days}/week): keep calories as written and place ${round(targets.carbs_g * 0.4)} g of carbs around the session.`,
-      `Rest days: drop carbs to ${round(targets.carbs_g * 0.7)} g and add ${round(targets.fat_g * 0.2)} g fat — calories stay the same.`,
-      'Hydrate to pale-straw urine colour; add a pinch of salt to water on heavy training days.',
+      `Training days (${daysPerWeek}/week): keep calories as written; place ${round(targets.carbs_g * 0.4)} g of carbs around the session.`,
+      `Rest days: drop carbs to ${round(targets.carbs_g * 0.7)} g and add ${round(targets.fat_g * 0.2)} g healthy fat (ghee / nuts / curd).`,
+      'Hydration: drink 3+ litres daily; enjoy chaas (spiced buttermilk) or coconut water post-workout for natural electrolytes.',
     ],
-    swap_list: pool.slice(0, 14).map((f) => ({
+    swap_list: pool.slice(0, 20).map((f) => ({
       food: f.name,
       per_100g: { calories: f.kcal, protein_g: f.protein_g, carbs_g: f.carbs_g, fat_g: f.fat_g },
       category: f.category,
     })),
     supplements: [
       { name: 'Creatine monohydrate', dose: '5 g daily, any time', note: 'Best-evidenced legal ergogenic. Optional but cheap and effective.' },
-      { name: 'Vitamin D3', dose: '1000-2000 IU daily', note: 'Worth testing first if you get regular sun.' },
-      { name: 'Whey / plant protein', dose: '1-2 scoops as needed', note: 'Only to close the protein gap, never to replace real food.' },
-      ...(pref === 'vegan' ? [{ name: 'Vitamin B12', dose: '250 mcg daily or 2500 mcg weekly', note: 'Non-negotiable on a vegan diet.' }] : []),
+      { name: 'Vitamin D3', dose: '1000-2000 IU daily', note: 'Vital for bone density and hormone health; common deficiency in Indian diets.' },
+      { name: 'Whey / Plant protein', dose: '1-2 scoops as needed', note: 'Convenient to hit 130g+ protein alongside dal, paneer, and soya chunks.' },
+      ...(pref === 'vegan' ? [{ name: 'Vitamin B12', dose: '250 mcg daily or 2500 mcg weekly', note: 'Non-negotiable on a 100% plant-based diet.' }] : []),
     ],
     grocery,
     rules: [
-      'Hit protein first, every meal, before you think about anything else.',
-      '80% of calories from single-ingredient foods; the other 20% is whatever keeps this sustainable.',
-      'Weigh food for two weeks to calibrate your eye — then you can go by portion.',
-      `Track weekly average bodyweight, not daily. Adjust by ±${round(targets.calories * 0.05, -1)} kcal only after 2 flat weeks.`,
+      'Hit protein first: ensure every meal contains a dedicated anchor (paneer, soya chunks, chicken, dal, eggs, sattu).',
+      'Combine grain and pulse (roti + dal, or rice + rajma) to secure complete complementary amino acids.',
+      'Portion cooking oil and ghee mindfully: 1 tablespoon of oil is ~120 kcal.',
+      'Track weekly average bodyweight, not daily fluctuations from sodium and hydration.',
     ],
   };
 }

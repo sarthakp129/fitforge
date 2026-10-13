@@ -222,8 +222,9 @@ router.get('/stats/heatmap', (req, res) => {
   const map = new Map(rows.map((r) => [r.date, r]));
   const nmap = new Map(nutrition.map((r) => [r.date, r]));
   const cells = [];
+  const tAnchor = new Date(`${today()}T12:00:00`);
   for (let i = weeks * 7 - 1; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+    const d = new Date(tAnchor.getTime() - i * 86400000).toISOString().slice(0, 10);
     cells.push({
       date: d,
       sessions: map.get(d)?.sessions || 0,

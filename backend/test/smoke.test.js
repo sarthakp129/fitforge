@@ -82,8 +82,13 @@ async function test(name, fn) {
   }
 }
 
-const today = new Date().toISOString().slice(0, 10);
-const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const localDate = (ms = Date.now()) => {
+  const d = new Date(ms);
+  const off = d.getTimezoneOffset();
+  return new Date(d.getTime() - off * 60000).toISOString().slice(0, 10);
+};
+const today = localDate();
+const daysAgo = (n) => localDate(Date.now() - n * 86400000);
 
 async function main() {
   console.log('\nFitForge API smoke test');
