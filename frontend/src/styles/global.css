@@ -723,40 +723,6 @@ input[type="range"].slider:focus-visible { outline: 2px solid var(--ember); outl
   background: var(--bg);
 }
 
-.faq-card {
-  border-radius: var(--radius);
-  background: var(--bg);
-  box-shadow: var(--sh-raise-sm);
-  overflow: hidden;
-  transition: box-shadow var(--t-med) var(--ease);
-}
-.faq-card:hover {
-  box-shadow: var(--sh-raise);
-}
-.faq-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 22px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-  font-weight: 640;
-  font-size: 1.02rem;
-  color: var(--text);
-  gap: 14px;
-}
-.faq-trigger:hover {
-  color: var(--ember);
-}
-.faq-body {
-  padding: 0 22px 20px;
-  font-size: 0.94rem;
-  color: var(--muted);
-  line-height: 1.65;
-}
 
 .bento-grid {
   display: grid;

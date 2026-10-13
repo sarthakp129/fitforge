@@ -52,28 +52,6 @@ const FEATURED_EXERCISES = [
   { id: 'standing_calf_raise', name: 'Standing Calf Raise', category: 'legs', muscles: ['calves'], equipment: 'machine', pattern: 'Isolation', compound: false, cue: 'Full deep stretch at bottom, explosive rise onto big toe, 2s pause.' },
 ];
 
-const FAQS = [
-  {
-    q: 'Do I need a Groq API key to use FitForge?',
-    a: 'No! FitForge includes a full deterministic fitness engine that generates comprehensive splits, calculates Mifflin-St Jeor nutrition targets, and manages progressive overload completely offline with zero tokens. Adding a free Groq API key is strictly optional for conversational AI coach features.',
-  },
-  {
-    q: 'Is my personal fitness and bodyweight data private?',
-    a: '100% private. All your logs, weigh-ins, workout history, and personal notes are stored locally in your own SQLite database on your server. FitForge has zero tracking scripts, zero third-party telemetry, and zero cloud analytics.',
-  },
-  {
-    q: 'Can I host FitForge on my home server or Raspberry Pi?',
-    a: 'Absolutely. FitForge is designed with an ultralight Node.js and SQLite footprint, consuming less than 80MB of RAM. You can run it with Docker (docker run -p 8080:8080 ...) or directly via npm start on port 8080.',
-  },
-  {
-    q: 'How does the progressive overload algorithm work?',
-    a: 'FitForge implements a double-progression model paired with RPE tracking. When you hit the upper rep target across all working sets with good form, the system automatically prescribes an incremental load increase for your next session.',
-  },
-  {
-    q: 'Can I backup or export my training data anytime?',
-    a: 'Yes. In the Progress view, you can export your entire database as a clean JSON backup or download a spreadsheet-ready CSV with all your workouts, sets, and bodyweight history whenever you want.',
-  },
-];
 
 export default function Landing() {
   const { login, register, handleError } = useStore();
@@ -85,7 +63,6 @@ export default function Landing() {
   const [demo, setDemo] = useState(false);
   const [counts, setCounts] = useState({ exercises: 102, foods: 62 });
   const [exerciseList, setExerciseList] = useState(FEATURED_EXERCISES);
-  const [faqOpen, setFaqOpen] = useState(0);
   const tilt = useTilt({ max: 5 });
 
   // Calculator state
@@ -213,7 +190,6 @@ export default function Landing() {
             <button type="button" className="public-nav-link" onClick={() => scrollTo('calculator')}>Calculator</button>
             <button type="button" className="public-nav-link" onClick={() => scrollTo('exercises')}>102 Exercises</button>
             <button type="button" className="public-nav-link" onClick={() => scrollTo('architecture')}>Architecture</button>
-            <button type="button" className="public-nav-link" onClick={() => scrollTo('faq')}>FAQ</button>
           </nav>
 
           <div className="row gap-8">
@@ -715,54 +691,6 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ------------------------ Interactive FAQ Accordion ----------------------- */}
-      <section className="section" id="faq" style={{ padding: '48px 0' }}>
-        <div className="wrap-narrow" style={{ maxWidth: 760, marginInline: 'auto' }}>
-          <Reveal>
-            <div className="section-head center">
-              <span className="eyebrow" style={{ color: 'var(--teal)' }}>Common Questions</span>
-              <h2 className="section-title" style={{ marginTop: 6 }}>Frequently Asked Questions</h2>
-              <p className="section-sub" style={{ marginInline: 'auto' }}>
-                Everything you need to know about self-hosting, privacy, and algorithmic design.
-              </p>
-            </div>
-          </Reveal>
-
-          <div className="stack gap-12" style={{ marginTop: 24 }}>
-            {FAQS.map((faq, i) => {
-              const isOpen = faqOpen === i;
-              return (
-                <Reveal key={faq.q} delay={i * 40}>
-                  <div className="faq-card">
-                    <button
-                      type="button"
-                      className="faq-trigger"
-                      onClick={() => setFaqOpen(isOpen ? -1 : i)}
-                      aria-expanded={isOpen}
-                    >
-                      <span>{faq.q}</span>
-                      <Icon
-                        name="chev"
-                        size={16}
-                        style={{
-                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                          transition: 'transform var(--t-fast) var(--ease)',
-                          color: 'var(--muted)',
-                        }}
-                      />
-                    </button>
-                    {isOpen && (
-                      <div className="faq-body">
-                        {faq.a}
-                      </div>
-                    )}
-                  </div>
-                </Reveal>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
       {/* ---------------------------- Access (Sign In / Register) ----------------- */}
       <section className="section" style={{ padding: '28px 0 56px' }} id="access">
@@ -830,7 +758,6 @@ export default function Landing() {
               <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('calculator')}>Live Macro Calculator</button>
               <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('exercises')}>102 Exercise Catalog</button>
               <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('architecture')}>Dual Engine Specs</button>
-              <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('faq')}>FAQ & Self-Hosting</button>
             </div>
 
             <div className="stack gap-8">
