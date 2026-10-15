@@ -37,7 +37,13 @@ export default function CursorFX() {
     let raf = 0;
     let running = true;
 
+    const isDark = () => {
+      const t = document.documentElement.getAttribute('data-theme');
+      return t === 'dark' || (!t && !!window.matchMedia?.('(prefers-color-scheme: dark)')?.matches);
+    };
+
     const onMove = (e) => {
+      if (!isDark()) return;
       glow.tx = e.clientX; glow.ty = e.clientY;
       const now = performance.now();
       const moved = Math.hypot(e.clientX - last.x, e.clientY - last.y);
@@ -56,6 +62,11 @@ export default function CursorFX() {
 
     const tick = () => {
       if (!running) return;
+      if (!isDark()) {
+        ctx.clearRect(0, 0, w, h);
+        raf = requestAnimationFrame(tick);
+        return;
+      }
       ctx.clearRect(0, 0, w, h);
 
       // lagging light source (lerp = cheap inertia)

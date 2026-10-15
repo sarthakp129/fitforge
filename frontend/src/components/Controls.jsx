@@ -19,7 +19,7 @@ export function SliderField({ label, value, onChange, min, max, step = 1, unit =
     <div className="field slider-row">
       <div className="row-between">
         <span className="label">{label}</span>
-        <span className="chip mono" aria-live="polite">{value}{unit}</span>
+        <span className="chip mono">{value}{unit}</span>
       </div>
       <input
         type="range"
@@ -29,6 +29,7 @@ export function SliderField({ label, value, onChange, min, max, step = 1, unit =
         step={step}
         value={value ?? min}
         aria-label={label}
+        aria-valuetext={`${value}${unit}`}
         onChange={(e) => onChange(Number(e.target.value))}
       />
       <div className="row-between tiny muted" aria-hidden="true">
@@ -40,7 +41,7 @@ export function SliderField({ label, value, onChange, min, max, step = 1, unit =
   );
 }
 
-const ITEM_H = 34;      // must match .wheel-item height in global.css
+const ITEM_H = 36;      // must match .wheel-item height in global.css
 const VISIBLE = 5;      // rows shown; the middle one is the value
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -98,6 +99,16 @@ export function WheelPicker({ value, min, max, onChange, unit = '' }) {
     latest.current?.(n);
   };
 
+  const onKeyDown = (e) => {
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (value > min) jump(value - 1);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (value < max) jump(value + 1);
+    }
+  };
+
   const items = [];
   for (let n = min; n <= max; n++) items.push(n);
 
@@ -107,10 +118,10 @@ export function WheelPicker({ value, min, max, onChange, unit = '' }) {
         className="wheel"
         ref={ref}
         onScroll={onScroll}
+        onKeyDown={onKeyDown}
         style={{ height: ITEM_H * VISIBLE }}
         role="listbox"
         aria-label={`Value picker, ${min} to ${max}${unit}`}
-        aria-valuenow={value}
       >
         <div className="wheel-pad" style={{ height: ITEM_H * ((VISIBLE - 1) / 2) }} aria-hidden="true" />
         {items.map((n) => (
@@ -119,6 +130,7 @@ export function WheelPicker({ value, min, max, onChange, unit = '' }) {
             type="button"
             role="option"
             aria-selected={n === value}
+            aria-pressed={n === value}
             className="wheel-item"
             onClick={() => jump(n)}
             tabIndex={n === value ? 0 : -1}
@@ -143,13 +155,18 @@ export function WheelPicker({ value, min, max, onChange, unit = '' }) {
  */
 export function TileGroup({ options, value, onChange, cols = 3 }) {
   return (
-    <div className="tiles" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${cols === 3 ? 150 : 190}px, 1fr))` }}>
+    <div
+      className="tiles"
+      role="radiogroup"
+      style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${cols === 3 ? 150 : 190}px, 1fr))` }}
+    >
       {options.map((o) => (
         <button
           key={o.value}
           type="button"
+          role="radio"
+          aria-checked={value === o.value}
           className="tile"
-          aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
         >
           <span className="row gap-6" style={{ width: '100%' }}>
@@ -181,7 +198,25 @@ export function SelectMenu({ label = 'Choose…', value, options, onChange, clas
   useEffect(() => {
     if (!open) return undefined;
     const onDown = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const items = ref.current?.querySelectorAll('[role="option"]');
+        if (!items || !items.length) return;
+        e.preventDefault();
+        const currentIndex = Array.from(items).indexOf(document.activeElement);
+        if (currentIndex === -1) {
+          items[0]?.focus();
+        } else if (e.key === 'ArrowDown') {
+          const nextIndex = (currentIndex + 1) % items.length;
+          items[nextIndex]?.focus();
+        } else {
+          const prevIndex = (currentIndex - 1 + items.length) % items.length;
+          items[prevIndex]?.focus();
+        }
+      }
+    };
     document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -198,6 +233,12 @@ export function SelectMenu({ label = 'Choose…', value, options, onChange, clas
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if ((e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
       >
         <span className="flex-1" style={{ textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {current?.label || label}
@@ -233,7 +274,7 @@ export function SelectMenu({ label = 'Choose…', value, options, onChange, clas
  *
  * @param {object} p standard input props (value, onChange, placeholder, …)
  */
-export function PasswordInput({ value, onChange, placeholder = '••••••••', autoComplete = 'current-password', ariaInvalid }) {
+export function PasswordInput({ value, onChange, placeholder = '••••••••', autoComplete = 'current-password', ariaInvalid, ...rest }) {
   const [show, setShow] = useState(false);
   return (
     <div className="pw-wrap">
@@ -244,6 +285,7 @@ export function PasswordInput({ value, onChange, placeholder = '•••••�
         placeholder={placeholder}
         autoComplete={autoComplete}
         aria-invalid={ariaInvalid}
+        {...rest}
       />
       <button
         type="button"

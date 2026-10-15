@@ -32,8 +32,8 @@
   /* text */
   --text: #232b38;
   --text-2: #333d4d;
-  --muted: #5c6878;
-  --faint: #667282;
+  --muted: #4f5b6b;
+  --faint: #566273;
   --ink: var(--text);
   --ink-2: var(--text-2);
   --muted-2: var(--faint);
@@ -51,7 +51,7 @@
   --violet-text: #4c4fd0;
   --amber: #d9930a;
   --amber-soft: rgba(217, 147, 10, 0.14);
-  --amber-text: #a06c00;
+  --amber-text: #8a5900;
   --rose: #e5484d;
   --rose-soft: rgba(229, 72, 77, 0.12);
   --rose-text: #c5303a;
@@ -119,7 +119,14 @@
   /* layout + type */
   --nav-h: 68px;
   --content-w: 1520px;
-  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Outfit", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  /* borders & glows */
+  --card-border: 1px solid rgba(163, 177, 198, 0.22);
+  --glow-ember: radial-gradient(circle at 50% 0%, rgba(232, 72, 31, 0.12), transparent 70%);
+  --glow-teal: radial-gradient(circle at 50% 0%, rgba(15, 158, 142, 0.12), transparent 70%);
 }
+
 

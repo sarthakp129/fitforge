@@ -29,6 +29,7 @@ export const Button = ({
     <button
       className={`${cls} ${size ? `btn-${size}` : ''} ${block ? 'btn-block' : ''}`}
       disabled={disabled || loading}
+      aria-busy={loading ? 'true' : undefined}
       {...rest}
     >
       {loading && <Spinner />}
@@ -39,7 +40,7 @@ export const Button = ({
 };
 
 export const Spinner = ({ size = 14 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" style={{ animation: 'spin 0.9s linear infinite' }}>
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" style={{ animation: 'spin 0.9s linear infinite' }}>
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" fill="none" />
     <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
     <style>{'@keyframes spin{to{transform:rotate(360deg)}}'}</style>
@@ -48,6 +49,15 @@ export const Spinner = ({ size = 14 }) => (
 
 export const Chip = ({ children, tone = '', active = false, onClick, className = '', ...rest }) => (
   <span
+    role={onClick ? 'button' : undefined}
+    tabIndex={onClick ? 0 : undefined}
+    aria-pressed={onClick ? active : undefined}
+    onKeyDown={onClick ? (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onClick(e);
+      }
+    } : undefined}
     className={`chip ${tone ? `chip-${tone}` : ''} ${active ? 'chip-active' : ''} ${onClick ? 'chip-btn' : ''} ${className}`}
     onClick={onClick}
     {...rest}
@@ -110,7 +120,15 @@ export const Bar = ({ value, max, tone = 'ember', height = 8, label }) => {
   return (
     <div className="stack gap-6">
       {label && <div className="row-between tiny"><span className="muted">{label}</span><span className="mono strong">{nf(value)} / {nf(max)}</span></div>}
-      <div className="bar" style={{ height }}>
+      <div
+        className="bar"
+        style={{ height }}
+        role="progressbar"
+        aria-valuenow={Math.round(value || 0)}
+        aria-valuemin={0}
+        aria-valuemax={Math.round(max || 100)}
+        aria-label={label || 'Progress'}
+      >
         <div className={`bar-fill bar-${tone}`} style={{ width: `${width}%` }} />
       </div>
     </div>
@@ -153,18 +171,58 @@ export const SingleRing = ({ value, max, size = 168, thickness = 12, color = 'va
 };
 
 export const Modal = ({ open, onClose, title, subtitle, children, wide = false, footer }) => {
+  const modalRef = useRef(null);
+  const prevFocusRef = useRef(null);
+
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
+    prevFocusRef.current = document.activeElement;
+    const modalEl = modalRef.current;
+    if (modalEl) {
+      const auto = modalEl.querySelector('[autofocus]');
+      if (auto) {
+        auto.focus();
+      } else {
+        const firstInput = modalEl.querySelector('input:not([type="hidden"]), select, textarea');
+        if (firstInput) {
+          firstInput.focus();
+        } else {
+          const focusable = modalEl.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+          if (focusable.length > 0) focusable[0].focus();
+        }
+      }
+    }
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        onClose?.();
+      } else if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+      if (prevFocusRef.current?.focus) prevFocusRef.current.focus();
+    };
   }, [open, onClose]);
 
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose} role="presentation">
       <div
+        ref={modalRef}
         className={`modal ${wide ? 'modal-wide' : ''}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
@@ -187,9 +245,11 @@ export const Modal = ({ open, onClose, title, subtitle, children, wide = false, 
   );
 };
 
-export const Empty = ({ icon = '◇', title, children, action }) => (
+export const Empty = ({ icon = 'spark', title, children, action }) => (
   <div className="empty stack gap-8" style={{ alignItems: 'center' }}>
-    <div className="empty-icon">{icon}</div>
+    <div className="empty-icon">
+      {typeof icon === 'string' && PATHS[icon] ? <Icon name={icon} size={28} /> : icon}
+    </div>
     {title && <div className="strong">{title}</div>}
     {children && <div className="small muted" style={{ maxWidth: '46ch' }}>{children}</div>}
     {action}
@@ -203,8 +263,18 @@ export const Skeleton = ({ h = 16, w = '100%', r = 8 }) => (
 export const Toaster = ({ toasts, onDismiss }) => (
   <div className="toasts" role="status" aria-live="polite">
     {toasts.map((t) => (
-      <div key={t.id} className={`toast ${t.kind === 'ok' ? 'toast-ok' : t.kind === 'err' ? 'toast-err' : t.kind === 'warn' ? 'toast-warn' : ''}`} onClick={() => onDismiss(t.id)}>
-        <span style={{ opacity: 0.7 }}>{t.kind === 'ok' ? '✓' : t.kind === 'err' ? '✕' : t.kind === 'warn' ? '!' : 'i'}</span>
+      <div
+        key={t.id}
+        role="button"
+        tabIndex={0}
+        aria-label={`Notification: ${t.message}. Click to dismiss.`}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDismiss(t.id); } }}
+        className={`toast ${t.kind === 'ok' ? 'toast-ok' : t.kind === 'err' ? 'toast-err' : t.kind === 'warn' ? 'toast-warn' : ''}`}
+        onClick={() => onDismiss(t.id)}
+      >
+        <span style={{ display: 'inline-flex', alignItems: 'center', opacity: 0.9 }}>
+          {t.kind === 'ok' ? <Icon name="check" size={15} /> : t.kind === 'err' ? <Icon name="close" size={15} /> : t.kind === 'warn' ? <Icon name="bolt" size={15} /> : <Icon name="info" size={15} />}
+        </span>
         <span className="flex-1">{t.message}</span>
       </div>
     ))}
@@ -265,6 +335,12 @@ const PATHS = {
   upload: 'M12 16V4M6 10l6-6 6 6M4 20h16',
   speaker: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M18.4 5.6a9 9 0 0 1 0 12.8',
   search: 'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM21 21l-4.35-4.35',
+  star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+  copy: 'M8 4v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7.2a2 2 0 0 0-.6-1.4L16.1 2.6A2 2 0 0 0 14.7 2H10a2 2 0 0 0-2 2zM16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h2',
+  info: 'M12 16v-4M12 8h.01M22 12A10 10 0 1 1 2 12a10 10 0 0 1 20 0z',
+  filter: 'M22 3H2l8 9.46V19l4 2v-8.54L22 3z',
+  droplet: 'M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z',
+  leaf: 'M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12',
 };
 
 export const Icon = ({ name, size = 18, strokeWidth = 1.9, style, ...rest }) => {

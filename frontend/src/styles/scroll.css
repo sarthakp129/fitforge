@@ -104,18 +104,25 @@
 .is-collapsed .collapsible-bar { padding-top: 8px; padding-bottom: 8px; }
 .is-collapsed .collapsible-hide { display: none; }
 
-/* Back-to-top button appears after ~800px (toggled by IO on a sentinel). */
 .back-to-top {
   position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom));
-  z-index: 50; width: 44px; height: 44px; border-radius: 50%;
+  z-index: 65; width: 44px; height: 44px; border-radius: 50%;
   display: grid; place-items: center;
-  background: var(--glass-strong); border: 1px solid var(--line); color: var(--text);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: var(--bg); border: 1px solid var(--line); color: var(--text);
   box-shadow: var(--shadow); cursor: pointer;
   opacity: 0; transform: translateY(12px); pointer-events: none;
-  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease);
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
 .back-to-top.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.back-to-top:hover { box-shadow: var(--sh-raise-lg); transform: translateY(-2px); }
+.back-to-top:active { box-shadow: var(--sh-press); transform: translateY(1px); }
+.back-to-top:focus-visible { outline: 2px solid var(--ember); outline-offset: 3px; }
+@media (max-width: 900px) {
+  .back-to-top {
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    right: 16px;
+  }
+}
 
 /* ------------------------------ reduced motion ---------------------------
    Every scroll effect above becomes "content simply visible". */
