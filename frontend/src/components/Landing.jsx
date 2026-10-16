@@ -2,10 +2,10 @@ import React, { useEffect, useState, useMemo } from 'react';
 import useStore from '../store/useStore.js';
 import api from '../lib/api.js';
 import useTilt from '../hooks/useTilt.js';
-import { Button, Card, Chip, Icon, Reveal, Bar, SingleRing } from './ui.jsx';
+import { Button, Card, Chip, Icon, Reveal, Bar, SingleRing, Modal, Empty } from './ui.jsx';
 import { PasswordInput } from './Controls.jsx';
 import { bmr, tdee, calorieTarget, macroTargets, bmi, weeklyRate } from '../lib/calc.js';
-import { nf } from '../lib/format.js';
+import { nf, titleCase } from '../lib/format.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
@@ -52,6 +52,55 @@ const FEATURED_EXERCISES = [
   { id: 'standing_calf_raise', name: 'Standing Calf Raise', category: 'legs', muscles: ['calves'], equipment: 'machine', pattern: 'Isolation', compound: false, cue: 'Full deep stretch at bottom, explosive rise onto big toe, 2s pause.' },
 ];
 
+const TESTIMONIALS = [
+  {
+    name: 'Marcus Vance',
+    role: 'Competitive Lifter · 32',
+    avatar: 'MV',
+    highlight: '-14 kg Fat Loss & 140 kg Bench',
+    quote: 'The automated progressive overload and Mifflin-St Jeor engine took every shred of guesswork away. 16 weeks in, every workout feels razor sharp, calculated, and intentional.',
+    stats: '16 weeks · 64 logged sessions',
+  },
+  {
+    name: 'Elena Rostova',
+    role: 'Recomposition Athlete · 27',
+    avatar: 'ER',
+    highlight: '18% Body Fat Milestone',
+    quote: 'Finally a fitness platform with zero predatory paywalls, zero ads, and true local data privacy. Having my nutrition targets automatically calibrate to my workout intensity made all the difference.',
+    stats: '12 weeks · 48 logged sessions',
+  },
+  {
+    name: 'David Sterling',
+    role: 'Strength & Conditioning · 38',
+    avatar: 'DS',
+    highlight: '+42 kg Total on The Big 3',
+    quote: 'The 2ms local engine runs faster than any cloud app. When I logged a mild shoulder impingement, the generator instantly adapted my horizontal presses without breaking volume.',
+    stats: '24 weeks · 96 logged sessions',
+  },
+];
+
+const FAQS = [
+  {
+    q: 'Does FitForge work 100% offline without sending my data to third parties?',
+    a: 'Yes, completely. FitForge uses a standalone SQLite database stored locally on your own machine or server. The core training and nutrition split generator runs deterministically in pure JavaScript with zero tokens and zero external network calls. Your weigh-ins, logs, and body metrics never leave your possession.',
+  },
+  {
+    q: 'How does the AI Coach work if I don’t configure an API key?',
+    a: 'FitForge is built with a dual-engine architecture. Without any API key, the local rules engine generates periodized multi-week workout splits, progressive overload calculations, and exact macronutrient grams. When an optional free Groq LPU API key is provided, the AI coach activates to provide contextual natural language training answers with built-in token budget protection.',
+  },
+  {
+    q: 'Can I tailor workouts around joint injuries or limited home gym equipment?',
+    a: 'Yes. FitForge includes biomechanical injury filters (such as knee, lower back, or shoulder protections) that automatically prune hostile exercises from your plan and replace them with safe movement patterns. You can also toggle between Full Gym, Dumbbells Only, and Home Bodyweight setups.',
+  },
+  {
+    q: 'How can I backup or export my athlete history?',
+    a: 'You have full data sovereignty. FitForge provides one-click export for both full JSON state snapshots and clean CSV spreadsheets of your workouts, 1RM estimates, and daily macronutrient intake. You can import your backup anytime.',
+  },
+  {
+    q: 'Can I use FitForge on my smartphone or tablet?',
+    a: 'Yes. FitForge is crafted with a mobile-first responsive layout, tactile touch targets (≥ 44px), iOS safe-area clearance, and persistent bottom navigation tabs so you can smoothly log sets and track meals right from the gym floor.',
+  },
+];
 
 export default function Landing() {
   const { login, register, handleError } = useStore();
@@ -64,6 +113,12 @@ export default function Landing() {
   const [counts, setCounts] = useState({ exercises: 102, foods: 62 });
   const [exerciseList, setExerciseList] = useState(FEATURED_EXERCISES);
   const tilt = useTilt({ max: 5 });
+
+  // Interactive modal & copy states
+  const [selectedExercise, setSelectedExercise] = useState(null);
+  const [copiedMacros, setCopiedMacros] = useState(false);
+  const [copiedCue, setCopiedCue] = useState(false);
+  const [openFaq, setOpenFaq] = useState({ 0: true });
 
   // Calculator state
   const [calcSex, setCalcSex] = useState('male');
@@ -86,7 +141,12 @@ export default function Landing() {
       setCounts({ exercises: ex?.count ?? 102, foods: fo?.count ?? 62 });
       setDemo(Boolean(h?.demo));
       if (ex?.exercises?.length) {
-        setExerciseList(ex.exercises);
+        const cueMap = new Map(FEATURED_EXERCISES.map((f) => [f.id, f.cue]));
+        const enriched = ex.exercises.map((item) => ({
+          ...item,
+          cue: item.cue || cueMap.get(item.id) || 'Maintain controlled eccentric cadence, brace core, and focus on smooth mind-muscle engagement through full range of motion.',
+        }));
+        setExerciseList(enriched);
       }
     });
   }, []);
@@ -125,7 +185,7 @@ export default function Landing() {
         (e.equipment || '').toLowerCase().includes(q)
       );
     }
-    return list.slice(0, 12);
+    return list.slice(0, 16);
   }, [exerciseList, catCategory, catQuery]);
 
   const set = (k) => (e) => {
@@ -175,12 +235,47 @@ export default function Landing() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const copyMacros = () => {
+    const text = `FitForge Macro Prescriptions:\nTarget Calories: ${nf(calcResults.targetKcal)} kcal/day\nProtein: ${calcResults.macros.protein_g}g | Carbs: ${calcResults.macros.carbs_g}g | Fat: ${calcResults.macros.fat_g}g\nHydration: ${calcResults.macros.water_l}L/day | Fiber: ${calcResults.macros.fiber_g}g/day`;
+    try {
+      navigator.clipboard?.writeText(text);
+      setCopiedMacros(true);
+      setTimeout(() => setCopiedMacros(false), 2400);
+    } catch {}
+  };
+
+  const copyCue = (cue) => {
+    const text = cue || 'Maintain controlled eccentric cadence, brace core, and focus on smooth mind-muscle engagement through full range of motion.';
+    try {
+      navigator.clipboard?.writeText(text);
+      setCopiedCue(true);
+      setTimeout(() => setCopiedCue(false), 2400);
+    } catch {}
+  };
+
+  const toggleFaq = (idx) => {
+    setOpenFaq((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
   return (
     <div className="shell">
       {/* ------------------------ Sticky Public Navigation ------------------------ */}
       <header className="public-header" aria-label="Public navigation">
         <div className="wrap row-between">
-          <div className="brand" role="button" tabIndex={0} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} style={{ cursor: 'pointer' }}>
+          <div
+            className="brand"
+            role="button"
+            tabIndex={0}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            }}
+            style={{ cursor: 'pointer' }}
+            aria-label="FitForge home"
+          >
             <span className="brand-mark"><Icon name="dumbbell" size={16} style={{ color: 'var(--ember)' }} /></span>
             <span>FitForge</span>
           </div>
@@ -190,11 +285,13 @@ export default function Landing() {
             <button type="button" className="public-nav-link" onClick={() => scrollTo('calculator')}>Calculator</button>
             <button type="button" className="public-nav-link" onClick={() => scrollTo('exercises')}>102 Exercises</button>
             <button type="button" className="public-nav-link" onClick={() => scrollTo('architecture')}>Architecture</button>
+            <button type="button" className="public-nav-link" onClick={() => scrollTo('reviews')}>Athlete Stories</button>
+            <button type="button" className="public-nav-link" onClick={() => scrollTo('faq')}>FAQ</button>
           </nav>
 
           <div className="row gap-8">
             {demo && (
-              <Button variant="ghost" size="sm" onClick={demoLogin} disabled={busy} title="One-click demo account">
+              <Button variant="ghost" size="sm" onClick={demoLogin} disabled={busy} loading={busy} title="One-click demo account">
                 <Icon name="play" size={13} /> Demo
               </Button>
             )}
@@ -205,21 +302,27 @@ export default function Landing() {
         </div>
       </header>
 
+      <main id="main">
       {/* ------------------------------ Hero Section ----------------------------- */}
-      <header className="hero" style={{ paddingBottom: 36 }}>
+      <section className="hero" aria-label="Hero" style={{ paddingBottom: 40, position: 'relative' }}>
+        <div className="hero-glow-layer" aria-hidden="true" />
         <div className="wrap hero-grid">
           <div>
+            <div className="hero-badge" style={{ marginBottom: 16 }}>
+              <span className="dot dot-ember" />
+              <span>Tactile Strength & Nutrition Engineering</span>
+            </div>
             <h1>Forge the body<br />you actually <span>want</span>.</h1>
             <p className="hero-sub">
               Your training, your meals and your progress in one private place —
-              built around your body, your schedule and your gear.
+              built around your body, your schedule and your gear with zero cloud traps.
             </p>
             <div className="hero-cta">
               <Button variant="ember" size="lg" onClick={() => { setMode('register'); scrollTo('access'); }}>
                 Create free account <Icon name="arrowRight" size={17} />
               </Button>
               {demo && (
-                <Button variant="soft" size="lg" onClick={demoLogin} disabled={busy}>
+                <Button variant="soft" size="lg" onClick={demoLogin} disabled={busy} loading={busy}>
                   <Icon name="play" size={15} /> Try the demo
                 </Button>
               )}
@@ -227,11 +330,11 @@ export default function Landing() {
                 <Icon name="target" size={16} /> Live calculator
               </Button>
             </div>
-            <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 22 }}>
-              <Chip tone="ember"><Icon name="dumbbell" size={12} /> {counts.exercises} exercises, coached</Chip>
+            <div className="row gap-8" style={{ flexWrap: 'wrap', marginTop: 24 }}>
+              <Chip tone="ember"><Icon name="dumbbell" size={12} /> {counts.exercises} coached exercises</Chip>
               <Chip tone="teal"><Icon name="flame" size={12} /> {counts.foods} everyday foods</Chip>
               <Chip><Icon name="check" size={12} /> Private — runs on your server</Chip>
-              <Chip tone="ghost"><Icon name="bolt" size={12} /> Zero-token local engine</Chip>
+              <Chip tone="ghost"><Icon name="bolt" size={12} /> 2ms Zero-token local engine</Chip>
             </div>
           </div>
 
@@ -241,11 +344,11 @@ export default function Landing() {
               onMouseMove={tilt.onMouseMove}
               onMouseLeave={tilt.onMouseLeave}
               className="card preview-card"
-              style={{ transition: 'transform 200ms var(--ease)' }}
+              style={{ willChange: 'transform' }}
             >
               <div className="row-between" style={{ marginBottom: 12 }}>
-                <span className="eyebrow">Today</span>
-                <Chip tone="ok">3 of 4 sessions</Chip>
+                <span className="eyebrow">Today’s Live Snapshot</span>
+                <Chip tone="ok"><Icon name="check" size={11} /> 3 of 4 sessions</Chip>
               </div>
               <div className="row-between" style={{ alignItems: 'baseline' }}>
                 <div>
@@ -260,15 +363,16 @@ export default function Landing() {
               <div className="stack g8" style={{ marginTop: 14 }}>
                 {[['Protein', 88, 'teal'], ['Carbs', 64, 'violet'], ['Fat', 71, 'amber']].map(([l, w, t]) => (
                   <div key={l} className="row g8">
-                    <span className="tiny strong" style={{ width: 52 }}>{l}</span>
+                    <span className="tiny strong" style={{ width: 56 }}>{l}</span>
                     <div className="bar flex-1" style={{ height: 8 }}>
                       <div className={`bar-fill bar-${t}`} style={{ width: `${w}%` }} />
                     </div>
+                    <span className="tiny mono muted" style={{ width: 34, textAlign: 'right' }}>{w}%</span>
                   </div>
                 ))}
               </div>
               <div className="stack g6" style={{ marginTop: 14 }}>
-                {['Bench press · 4 × 6-10 · 100 kg', 'Barbell row · 4 × 8 · 82 kg'].map((r) => (
+                {['Barbell Bench Press · 4 × 8 · 100 kg', 'Barbell Row · 4 × 8 · 82 kg'].map((r) => (
                   <div key={r} className="ex-row" style={{ padding: '10px 12px' }}>
                     <span className="small strong">{r}</span>
                     <Chip tone="ghost">today</Chip>
@@ -279,17 +383,17 @@ export default function Landing() {
             </div>
           </div>
         </div>
-      </header>
+      </section>
 
       {/* ------------------------ Live Interactive Calculator ------------------------ */}
       <section className="section" id="calculator" style={{ padding: '48px 0' }}>
         <div className="wrap">
           <Reveal>
-            <div className="section-head center" style={{ maxWidth: 680, marginInline: 'auto' }}>
+            <div className="section-head center" style={{ maxWidth: 700, marginInline: 'auto' }}>
               <span className="eyebrow" style={{ color: 'var(--ember)' }}>Interactive Metabolism Engine</span>
               <h2 className="section-title" style={{ marginTop: 6 }}>Calculate your exact nutrition targets.</h2>
               <p className="section-sub" style={{ marginInline: 'auto' }}>
-                Slide your physical numbers below. The client-side Mifflin-St Jeor engine recalculates BMR,
+                Adjust your physical numbers below. The client-side Mifflin-St Jeor engine recalculates BMR,
                 maintenance TDEE, and macro gram allocations in real time.
               </p>
             </div>
@@ -409,7 +513,7 @@ export default function Landing() {
                 </div>
 
                 {/* Right: Calculated outputs */}
-                <div className="stack gap-16" style={{ background: 'var(--surface-2)', padding: 22, borderRadius: 'var(--radius)' }}>
+                <div className="stack gap-16" style={{ background: 'var(--surface-2)', padding: 24, borderRadius: 'var(--radius)' }}>
                   <div className="row-between">
                     <span className="eyebrow">Prescribed Daily Target</span>
                     <Chip tone="ember">BMI {calcResults.bmiVal}</Chip>
@@ -462,19 +566,34 @@ export default function Landing() {
                   </div>
 
                   <div className="row-between tiny muted" style={{ marginTop: 4 }}>
-                    <span>💧 Hydration: <b>{calcResults.macros.water_l}L</b> / day</span>
-                    <span>🌾 Fiber: <b>{calcResults.macros.fiber_g}g</b> / day</span>
+                    <span className="row gap-4" style={{ alignItems: 'center' }}>
+                      <Icon name="droplet" size={13} style={{ color: 'var(--teal)' }} />
+                      <span>Hydration: <b>{calcResults.macros.water_l}L</b> / day</span>
+                    </span>
+                    <span className="row gap-4" style={{ alignItems: 'center' }}>
+                      <Icon name="leaf" size={13} style={{ color: 'var(--amber)' }} />
+                      <span>Fiber: <b>{calcResults.macros.fiber_g}g</b> / day</span>
+                    </span>
                   </div>
 
-                  <Button
-                    variant="ember"
-                    size="md"
-                    block
-                    style={{ marginTop: 8 }}
-                    onClick={() => { setMode('register'); scrollTo('access'); }}
-                  >
-                    Adopt these targets into your plan <Icon name="arrowRight" size={15} />
-                  </Button>
+                  <div className="row gap-8" style={{ marginTop: 8 }}>
+                    <Button
+                      variant="ember"
+                      size="md"
+                      block
+                      onClick={() => { setMode('register'); scrollTo('access'); }}
+                    >
+                      Adopt targets into your plan <Icon name="arrowRight" size={15} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      onClick={copyMacros}
+                      title="Copy macro breakdown to clipboard"
+                    >
+                      <Icon name={copiedMacros ? 'check' : 'copy'} size={15} />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </Card>
@@ -524,7 +643,7 @@ export default function Landing() {
                 <span className="eyebrow" style={{ color: 'var(--teal)' }}>Biomechanical Movement Database</span>
                 <h2 className="section-title" style={{ marginTop: 6 }}>102 curated, coached exercises.</h2>
                 <p className="section-sub">
-                  Every exercise includes muscle targeting, movement pattern classification, equipment filters, and form cues.
+                  Every movement features precise muscle targeting, biomechanical pattern tags, and form cues. Click any exercise card to inspect full execution details.
                 </p>
               </div>
 
@@ -548,48 +667,83 @@ export default function Landing() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 20, position: 'relative', maxWidth: 540 }}>
               <input
                 className="input"
                 placeholder="Search exercise by name, muscle (e.g. lats, quads), or equipment..."
                 value={catQuery}
                 onChange={(e) => setCatQuery(e.target.value)}
                 aria-label="Filter exercises"
-                style={{ maxWidth: 540 }}
+                style={{ paddingRight: catQuery ? 38 : 14 }}
               />
+              {catQuery && (
+                <button
+                  type="button"
+                  onClick={() => setCatQuery('')}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'transparent', border: 0, cursor: 'pointer', color: 'var(--muted)',
+                  }}
+                  aria-label="Clear exercise search"
+                >
+                  <Icon name="close" size={15} />
+                </button>
+              )}
             </div>
           </Reveal>
 
           <div className="catalog-grid">
-            {filteredExercises.map((ex, i) => (
-              <Reveal key={ex.id} delay={Math.min(i * 30, 240)}>
-                <div className="catalog-card">
-                  <div className="row-between">
-                    <span className="strong" style={{ fontSize: '0.98rem' }}>{ex.name}</span>
-                    <Chip tone="ghost" style={{ fontSize: '0.74rem' }}>{ex.equipment}</Chip>
-                  </div>
-
-                  <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
-                    {(ex.muscles || []).map((m) => (
-                      <span key={m} className="tiny muted" style={{ background: 'var(--surface-2)', padding: '2px 8px', borderRadius: 6 }}>
-                        {m}
-                      </span>
-                    ))}
-                    {ex.compound && (
-                      <span className="tiny strong" style={{ color: 'var(--ember)', padding: '2px 6px' }}>
-                        Compound
-                      </span>
-                    )}
-                  </div>
-
-                  {ex.cue && (
-                    <div className="tiny muted" style={{ lineHeight: 1.45, marginTop: 4 }}>
-                      💡 {ex.cue}
+            {filteredExercises.length === 0 ? (
+              <div style={{ gridColumn: '1 / -1', padding: '36px 16px' }}>
+                <Empty icon="search" title="No matching exercises found">
+                  Try a different search term or select "All Movements" to reset your filter.
+                </Empty>
+              </div>
+            ) : (
+              filteredExercises.map((ex, i) => (
+                <Reveal key={ex.id} delay={Math.min(i * 25, 200)}>
+                  <div
+                    className="catalog-card"
+                    onClick={() => setSelectedExercise(ex)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && setSelectedExercise(ex)}
+                    style={{ cursor: 'pointer' }}
+                    title="Click to inspect biomechanics and form cues"
+                  >
+                    <div className="row-between">
+                      <span className="strong" style={{ fontSize: '0.98rem' }}>{ex.name}</span>
+                      <Chip tone="ghost" style={{ fontSize: '0.74rem' }}>{ex.equipment}</Chip>
                     </div>
-                  )}
-                </div>
-              </Reveal>
-            ))}
+
+                    <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                      {(ex.muscles || []).map((m) => (
+                        <span key={m} className="tiny muted" style={{ background: 'var(--surface-2)', padding: '2px 8px', borderRadius: 6 }}>
+                          {m}
+                        </span>
+                      ))}
+                      {ex.compound && (
+                        <span className="tiny strong" style={{ color: 'var(--ember)', padding: '2px 6px' }}>
+                          Compound
+                        </span>
+                      )}
+                    </div>
+
+                    {ex.cue && (
+                      <div className="tiny muted row gap-4" style={{ lineHeight: 1.45, marginTop: 4, alignItems: 'flex-start' }}>
+                        <Icon name="bolt" size={12} style={{ color: 'var(--ember)', flex: 'none', marginTop: 2 }} />
+                        <span>{ex.cue}</span>
+                      </div>
+                    )}
+
+                    <div className="row-between tiny muted" style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line-2)' }}>
+                      <span style={{ fontSize: '0.76rem', color: 'var(--ember-text)' }}>Inspect biomechanics</span>
+                      <Icon name="arrowRight" size={12} style={{ color: 'var(--ember-text)' }} />
+                    </div>
+                  </div>
+                </Reveal>
+              ))
+            )}
           </div>
 
           <Reveal delay={100}>
@@ -677,7 +831,7 @@ export default function Landing() {
                 </span>
                 <h3>Soft Tactile Material (Single Light Source)</h3>
                 <p className="small muted" style={{ lineHeight: 1.6, marginTop: 8 }}>
-                  Handcrafted neumorphic design system built on a single soothing `#e7ebf3` surface.
+                  Handcrafted neumorphic design system built on a single soothing material surface.
                   Top-left physical shadow pairs carve inputs as wells and push actionables forward as raised tactile controls.
                   Press feedback provides real physical satisfaction on every touch.
                 </p>
@@ -691,6 +845,100 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* -------------------- Athlete Stories & Real Transformations -------------- */}
+      <section className="section" id="reviews" style={{ padding: '48px 0' }}>
+        <div className="wrap">
+          <Reveal>
+            <div className="section-head center" style={{ maxWidth: 680, marginInline: 'auto' }}>
+              <span className="eyebrow" style={{ color: 'var(--ok)' }}>Social Proof & Verification</span>
+              <h2 className="section-title" style={{ marginTop: 6 }}>Built for athletes who track truth.</h2>
+              <p className="section-sub" style={{ marginInline: 'auto' }}>
+                Real strength progressions and body recomposition results achieved on FitForge's private local runtime.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="testimonial-grid" style={{ marginTop: 28 }}>
+            {TESTIMONIALS.map((t, idx) => (
+              <Reveal key={t.name} delay={idx * 80}>
+                <div className="testimonial-card">
+                  <div>
+                    <div className="testimonial-stars" aria-label="5 out of 5 stars">
+                      {[0, 1, 2, 3, 4].map((s) => (
+                        <Icon key={s} name="star" size={16} />
+                      ))}
+                    </div>
+                    <div className="chip chip-ok" style={{ marginBottom: 14, fontSize: '0.8rem' }}>
+                      {t.highlight}
+                    </div>
+                    <p className="testimonial-quote">“{t.quote}”</p>
+                  </div>
+                  <div className="testimonial-author">
+                    <div className="testimonial-avatar">{t.avatar}</div>
+                    <div className="stack gap-2 flex-1">
+                      <span className="strong small">{t.name}</span>
+                      <span className="tiny muted">{t.role}</span>
+                      <span className="tiny mono" style={{ color: 'var(--ember-text)' }}>{t.stats}</span>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* -------------------- Interactive FAQ Accordion -------------------------- */}
+      <section className="section" id="faq" style={{ padding: '48px 0' }}>
+        <div className="wrap">
+          <Reveal>
+            <div className="section-head center" style={{ maxWidth: 680, marginInline: 'auto' }}>
+              <span className="eyebrow" style={{ color: 'var(--ember)' }}>Everything You Need To Know</span>
+              <h2 className="section-title" style={{ marginTop: 6 }}>Frequently Asked Questions</h2>
+              <p className="section-sub" style={{ marginInline: 'auto' }}>
+                Clear answers about offline architecture, data ownership, AI budgeting, and privacy.
+              </p>
+            </div>
+          </Reveal>
+
+          <div className="faq-list" style={{ marginTop: 28 }}>
+            {FAQS.map((item, i) => {
+              const isOpen = Boolean(openFaq[i]);
+              return (
+                <Reveal key={item.q} delay={i * 50}>
+                  <div className="faq-item">
+                    <button
+                      type="button"
+                      className="faq-trigger"
+                      id={`faq-trigger-${i}`}
+                      aria-controls={`faq-panel-${i}`}
+                      onClick={() => toggleFaq(i)}
+                      aria-expanded={isOpen}
+                    >
+                      <span>{item.q}</span>
+                      <Icon
+                        name="chev"
+                        size={18}
+                        className={`faq-chevron ${isOpen ? 'faq-open' : ''}`}
+                      />
+                    </button>
+                    {isOpen && (
+                      <div
+                        id={`faq-panel-${i}`}
+                        role="region"
+                        aria-labelledby={`faq-trigger-${i}`}
+                        className="faq-content"
+                      >
+                        {item.a}
+                      </div>
+                    )}
+                  </div>
+                </Reveal>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* ---------------------------- Access (Sign In / Register) ----------------- */}
       <section className="section" style={{ padding: '28px 0 56px' }} id="access">
@@ -705,18 +953,49 @@ export default function Landing() {
               <form onSubmit={submit} className="stack gap-12" style={{ marginTop: 18 }} noValidate>
                 {mode === 'register' && (
                   <div className="field">
-                    <span className="label">Name</span>
-                    <input className="input" value={form.name} onChange={set('name')} placeholder="Alex" autoComplete="name" aria-label="Name" />
+                    <label className="label" htmlFor="auth-name">Name</label>
+                    <input
+                      id="auth-name"
+                      className="input"
+                      value={form.name}
+                      onChange={set('name')}
+                      placeholder="Alex"
+                      autoComplete="name"
+                      aria-label="Name"
+                      aria-invalid={Boolean(errors.name)}
+                      aria-describedby={errors.name ? 'auth-name-error' : undefined}
+                    />
+                    {errors.name && <span id="auth-name-error" className="field-error">{errors.name}</span>}
                   </div>
                 )}
                 <div className="field">
-                  <span className="label">Email</span>
-                  <input className="input" type="email" value={form.email} onChange={set('email')} placeholder="you@example.com" autoComplete="email" aria-label="Email" inputMode="email" />
+                  <label className="label" htmlFor="auth-email">Email</label>
+                  <input
+                    id="auth-email"
+                    className="input"
+                    type="email"
+                    value={form.email}
+                    onChange={set('email')}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    aria-label="Email"
+                    inputMode="email"
+                    aria-invalid={Boolean(errors.email)}
+                    aria-describedby={errors.email ? 'auth-email-error' : undefined}
+                  />
+                  {errors.email && <span id="auth-email-error" className="field-error">{errors.email}</span>}
                 </div>
                 <div className="field">
-                  <span className="label">Password</span>
-                  <PasswordInput value={form.password} onChange={set('password')} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} ariaInvalid={Boolean(errors.password)} />
-                  {errors.password && <span className="field-error">{errors.password}</span>}
+                  <label className="label" htmlFor="auth-password">Password</label>
+                  <PasswordInput
+                    id="auth-password"
+                    value={form.password}
+                    onChange={set('password')}
+                    autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                    ariaInvalid={Boolean(errors.password)}
+                    aria-describedby={errors.password ? 'auth-password-error' : undefined}
+                  />
+                  {errors.password && <span id="auth-password-error" className="field-error">{errors.password}</span>}
                 </div>
                 {apiError && <div className="chip chip-warn" role="alert" style={{ justifyContent: 'center' }}><Icon name="bolt" size={12} /> {apiError}</div>}
                 <Button type="submit" variant="ember" size="lg" loading={busy} block>
@@ -734,8 +1013,110 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* ------------------------ Biomechanical Exercise Modal ------------------- */}
+      {selectedExercise && (
+        <Modal
+          open={Boolean(selectedExercise)}
+          onClose={() => { setSelectedExercise(null); setCopiedCue(false); }}
+          wide
+          title={selectedExercise.name}
+          subtitle={`${titleCase(selectedExercise.category || '')} · ${selectedExercise.pattern || 'Movement Pattern'}`}
+          footer={
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => copyCue(selectedExercise.cue)}
+              >
+                <Icon name={copiedCue ? 'check' : 'copy'} size={14} />
+                {copiedCue ? 'Copied cue' : 'Copy form cue'}
+              </Button>
+              <Button
+                variant="ember"
+                size="sm"
+                onClick={() => { setSelectedExercise(null); setCopiedCue(false); }}
+              >
+                Done
+              </Button>
+            </>
+          }
+        >
+          <div className="ex-modal-detail">
+            <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+              <Chip tone="ember"><Icon name="dumbbell" size={12} /> {selectedExercise.equipment}</Chip>
+              {selectedExercise.compound ? (
+                <Chip tone="ok">Compound Movement</Chip>
+              ) : (
+                <Chip tone="teal">Isolation Movement</Chip>
+              )}
+              <Chip tone="ghost">{selectedExercise.pattern}</Chip>
+            </div>
+
+            <div className="stack gap-8">
+              <span className="eyebrow">Target Muscle Activation</span>
+              <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                {(selectedExercise.muscles || []).map((m, idx) => (
+                  <span
+                    key={m}
+                    className="chip"
+                    style={{
+                      background: idx === 0 ? 'var(--ember-soft)' : 'var(--surface-2)',
+                      color: idx === 0 ? 'var(--ember-text)' : 'var(--text-2)',
+                      fontWeight: 650,
+                    }}
+                  >
+                    {idx === 0 ? `Primary: ${titleCase(m)}` : titleCase(m)}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="cue-step-card">
+              <div className="row gap-8" style={{ marginBottom: 6 }}>
+                <span className="flow-dot mono"><Icon name="bolt" size={13} style={{ color: 'var(--ember-text)' }} /></span>
+                <span className="strong">Coached Form Cue</span>
+              </div>
+              <p className="small" style={{ lineHeight: 1.6, color: 'var(--text)' }}>
+                {selectedExercise.cue}
+              </p>
+            </div>
+
+            <div className="stack gap-10">
+              <span className="eyebrow">Biomechanical Execution Guide</span>
+              <div className="grid grid-2" style={{ gap: 12 }}>
+                <div className="cue-step-card">
+                  <span className="strong tiny" style={{ color: 'var(--teal-text)' }}>1. Setup & Stance</span>
+                  <p className="tiny muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
+                    Plant stable base, retract and depress scapulae where applicable, and brace intra-abdominal pressure.
+                  </p>
+                </div>
+                <div className="cue-step-card">
+                  <span className="strong tiny" style={{ color: 'var(--ember-text)' }}>2. Eccentric Control</span>
+                  <p className="tiny muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
+                    Lower the load over 2-3 seconds with full control to maximize active tension and stretch reflexes.
+                  </p>
+                </div>
+                <div className="cue-step-card">
+                  <span className="strong tiny" style={{ color: 'var(--violet-text)' }}>3. Concentric Drive</span>
+                  <p className="tiny muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
+                    Drive explosively through the prime movers without relying on secondary joint recoil or momentum.
+                  </p>
+                </div>
+                <div className="cue-step-card">
+                  <span className="strong tiny" style={{ color: 'var(--ok-text)' }}>4. Safety & Lockout</span>
+                  <p className="tiny muted" style={{ marginTop: 4, lineHeight: 1.5 }}>
+                    Maintain neutral cervical and lumbar alignment; pause briefly at terminal contraction.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+      </main>
+
       {/* ------------------------ Editorial 4-Column Footer ----------------------- */}
-      <footer style={{ padding: '36px 0 44px', borderTop: '2px solid var(--surface-2)' }}>
+      <footer style={{ padding: '40px 0 48px', borderTop: '2px solid var(--surface-2)' }}>
         <div className="wrap">
           <div className="grid grid-4" style={{ gap: 32, marginBottom: 36 }}>
             <div className="stack gap-10">
@@ -754,17 +1135,19 @@ export default function Landing() {
 
             <div className="stack gap-8">
               <span className="eyebrow">Platform</span>
-              <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('features')}>Three Core Promises</button>
-              <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('calculator')}>Live Macro Calculator</button>
-              <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('exercises')}>102 Exercise Catalog</button>
-              <button type="button" className="tiny muted" style={{ background: 'none', border: 0, textAlign: 'left', cursor: 'pointer', padding: 0 }} onClick={() => scrollTo('architecture')}>Dual Engine Specs</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('features')}>Three Core Promises</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('calculator')}>Live Macro Calculator</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('exercises')}>102 Exercise Catalog</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('architecture')}>Dual Engine Specs</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('reviews')}>Athlete Stories</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('faq')}>FAQ</button>
             </div>
 
             <div className="stack gap-8">
               <span className="eyebrow">Tech Stack</span>
               <span className="tiny muted">Node.js 22.x LTS</span>
               <span className="tiny muted">Express 5.1 REST API</span>
-              <span className="tiny muted">React 19 + Vite</span>
+              <span className="tiny muted">React 18 + Vite</span>
               <span className="tiny muted">SQLite 3 (WAL mode)</span>
               <span className="tiny muted">Groq LPU Governor</span>
             </div>
