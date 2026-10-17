@@ -101,6 +101,24 @@ export default function Onboarding({ onDone }) {
     }
   };
 
+  const regeneratePlans = async () => {
+    setBusy(true);
+    try {
+      await onboard(form);
+      await refreshProfile();
+      const [t, n] = await Promise.all([
+        api.ai.planTraining({ weeks: 4 }).catch((e) => ({ error: e.message })),
+        api.ai.planNutrition({}).catch((e) => ({ error: e.message })),
+      ]);
+      setPlans({ training: t.plan || null, nutrition: n.plan || null });
+      toast('Fresh plans generated from your latest profile.', 'ok');
+    } catch (err) {
+      handleError(err, 'Could not regenerate plans.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const finish = async () => {
     setBusy(true);
     try {
@@ -126,14 +144,23 @@ export default function Onboarding({ onDone }) {
         <div className="row-between" style={{ flexWrap: 'wrap', gap: 16 }}>
           <div>
             <div className="eyebrow">Setup · step {step + 1} of {STEPS.length}</div>
-            <h2 style={{ marginTop: 6 }}>Build your baseline.</h2>
+            <h1 style={{ fontSize: 'clamp(1.8rem,3.6vw,2.4rem)', marginTop: 6 }}>Build your baseline.</h1>
             <p className="small muted" style={{ marginTop: 6, maxWidth: '60ch' }}>
               Drag, don’t type. Everything here feeds the plan generator — and the summary on the
               right updates live so you can see the maths.
             </p>
           </div>
           <div className="stack gap-8" style={{ minWidth: 220, flex: 1, maxWidth: 360 }}>
-            <div className="stepbar" aria-hidden="true"><div style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} /></div>
+            <div
+              className="stepbar"
+              role="progressbar"
+              aria-valuenow={step + 1}
+              aria-valuemin={1}
+              aria-valuemax={STEPS.length}
+              aria-label={`Onboarding progress: step ${step + 1} of ${STEPS.length}`}
+            >
+              <div style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
+            </div>
             <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
               {STEPS.map((s, i) => (
                 <Chip
@@ -293,6 +320,7 @@ export default function Onboarding({ onDone }) {
                     Session: `${form.session_minutes || 60} min`,
                     Equipment: equipmentLabel[form.equipment] || form.equipment,
                     Diet: dietLabel[form.diet_pref] || form.diet_pref,
+                    Height: form.height_cm ? `${form.height_cm} cm` : '—',
                     Weight: form.weight_kg ? `${form.weight_kg} kg` : '—',
                   }).map(([k, v]) => (
                     <div key={k} className="row-between" style={{ padding: '8px 0', borderBottom: '1px solid var(--line-2)' }}>
@@ -329,7 +357,7 @@ export default function Onboarding({ onDone }) {
               <div className="row gap-10">
                 {step === STEPS.length - 1 ? (
                   <>
-                    <Button variant="ghost" onClick={finish} disabled={busy} loading={busy}>
+                    <Button variant="ghost" onClick={regeneratePlans} disabled={busy} loading={busy}>
                       <Icon name="refresh" size={15} /> Regenerate plans
                     </Button>
                     <Button variant="ember" onClick={finish} disabled={busy} loading={busy}>

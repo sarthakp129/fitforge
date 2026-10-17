@@ -140,7 +140,6 @@ export default function Settings() {
             ))}
           </nav>
           <div className="stack g24">
-
         {/* ------------------------------- profile -------------------------- */}
         <Reveal>
           <Card solid className="card-pad-lg" id="sec-profile">
@@ -245,7 +244,7 @@ export default function Settings() {
             </div>
 
             {test && (
-              <Card className={test.ok ? '' : ''} style={{ background: test.ok ? 'rgba(22,163,74,0.07)' : 'rgba(244,63,94,0.07)', border: 0 }}>
+              <Card style={{ background: test.ok ? 'var(--ok-soft)' : 'var(--rose-soft)', border: 0 }}>
                 {test.ok ? (
                   <div className="stack gap-4">
                     <div className="row gap-8 strong small"><Icon name="check" size={15} style={{ color: 'var(--ok)' }} /> Connected</div>
@@ -300,7 +299,15 @@ export default function Settings() {
                 <span className="eyebrow">Usage, last 7 days</span>
                 <div className="table-scroll">
                   <table className="table">
-                    <thead><tr><th>Day</th><th className="table-num">Calls</th><th className="table-num">Tokens</th><th className="table-num">Cache hits</th><th className="table-num">Avg latency</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th scope="col">Day</th>
+                        <th scope="col" className="table-num">Calls</th>
+                        <th scope="col" className="table-num">Tokens</th>
+                        <th scope="col" className="table-num">Cache hits</th>
+                        <th scope="col" className="table-num">Avg latency</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {usage.per_day.map((d) => (
                         <tr key={d.day}>

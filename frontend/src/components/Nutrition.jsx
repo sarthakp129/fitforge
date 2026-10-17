@@ -24,8 +24,8 @@ const MEALS = [
 function cuisineBadge(food) {
   if (!food) return null;
   const hay = `${food.name} ${(food.tags || []).join(' ')}`.toLowerCase();
-  if (hay.includes('north indian')) return { label: 'North Indian', tone: 'ember', icon: '🍛' };
-  if (hay.includes('south indian')) return { label: 'South Indian', tone: 'teal', icon: '🥥' };
+  if (hay.includes('north indian')) return { label: 'North Indian', tone: 'ember', iconName: 'spark' };
+  if (hay.includes('south indian')) return { label: 'South Indian', tone: 'teal', iconName: 'leaf' };
   return null;
 }
 
@@ -514,6 +514,8 @@ export default function Nutrition() {
                             key={d.day_name}
                             type="button"
                             onClick={() => { setSelectedDayIdx(i); setMealAlts({}); }}
+                            aria-label={`View ${d.day_name} meal plan`}
+                            aria-pressed={selectedDayIdx === i}
                             className={`btn btn-sm ${selectedDayIdx === i ? 'btn-ember' : 'btn-ghost'}`}
                             style={{ minWidth: 54, fontWeight: selectedDayIdx === i ? 700 : 500 }}
                           >
@@ -559,6 +561,7 @@ export default function Nutrition() {
                                   className="btn btn-ghost btn-sm"
                                   style={{ padding: '3px 8px', fontSize: '0.74rem' }}
                                   title="Rotate this meal to an alternative authentic recipe"
+                                  aria-label={`Rotate ${m.name} to alternative authentic recipe`}
                                   onClick={() => toggleMealAlt(mIdx)}
                                 >
                                   <Icon name="refresh" size={11} /> Rotate
@@ -576,7 +579,8 @@ export default function Nutrition() {
                                     {f.name}
                                     {badge && (
                                       <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
-                                        {badge.icon} {badge.label}
+                                        {badge.iconName && <Icon name={badge.iconName} size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
+                                        {badge.label}
                                       </span>
                                     )}
                                   </span>
@@ -662,10 +666,10 @@ export default function Nutrition() {
         <div className="row gap-6" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
           {[
             { id: 'all', label: 'All Foods' },
-            { id: 'north', label: '🍛 North Indian' },
-            { id: 'south', label: '🥥 South Indian' },
-            { id: 'protein', label: '⚡ High Protein' },
-            { id: 'staple', label: '🌾 Staples' },
+            { id: 'north', label: 'North Indian', icon: 'spark' },
+            { id: 'south', label: 'South Indian', icon: 'leaf' },
+            { id: 'protein', label: 'High Protein', icon: 'bolt' },
+            { id: 'staple', label: 'Staples', icon: 'target' },
           ].map((c) => (
             <Chip
               key={c.id}
@@ -673,6 +677,7 @@ export default function Nutrition() {
               tone={cuisineFilter === c.id ? 'ember' : 'ghost'}
               style={{ cursor: 'pointer', fontWeight: cuisineFilter === c.id ? 700 : 500 }}
             >
+              {c.icon && <Icon name={c.icon} size={12} style={{ marginRight: 2 }} />}
               {c.label}
             </Chip>
           ))}
@@ -694,7 +699,8 @@ export default function Nutrition() {
                       {f.name}
                       {b && (
                         <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
-                          {b.icon} {b.label}
+                          {b.iconName && <Icon name={b.iconName} size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
+                          {b.label}
                         </span>
                       )}
                     </div>
@@ -790,10 +796,10 @@ function guessMeal() {
 
 function mealFromName(name) {
   const n = String(name || '').toLowerCase();
-  if (n.includes('breakfast')) return 'breakfast';
-  if (n.includes('lunch')) return 'lunch';
-  if (n.includes('dinner')) return 'dinner';
-  if (n.includes('pre')) return 'pre_workout';
-  if (n.includes('post')) return 'post_workout';
+  if (/\b(?:breakfast|brekkie)\b/.test(n)) return 'breakfast';
+  if (/\blunch\b/.test(n)) return 'lunch';
+  if (/\b(?:dinner|supper)\b/.test(n)) return 'dinner';
+  if (/\bpre[\s_-]?workout\b|\bbefore\s+(?:training|workout)\b/.test(n)) return 'pre_workout';
+  if (/\bpost[\s_-]?workout\b|\bafter\s+(?:training|workout)\b/.test(n)) return 'post_workout';
   return 'snack';
 }

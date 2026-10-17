@@ -100,15 +100,19 @@ export default function CommandPalette() {
       ? baseCommands.filter((c) => c.label.toLowerCase().includes(q) || c.group.toLowerCase().includes(q))
       : baseCommands;
 
-    const exerciseItems = exercises.map((e) => ({
-      id: `ex-${e.id}`,
-      group: 'Exercises Library',
-      label: e.name,
-      sublabel: `${e.target_muscle || e.muscle || ''} · ${e.equipment || ''}`,
-      icon: 'dumbbell',
-      badge: e.category || 'exercise',
-      action: () => navigate('/training'),
-    }));
+    const exerciseItems = exercises.map((e) => {
+      const muscles = Array.isArray(e.muscles) ? e.muscles.join(', ') : (e.muscle || e.target_muscle || '');
+      const sub = [muscles, e.equipment].filter(Boolean).join(' · ');
+      return {
+        id: `ex-${e.id}`,
+        group: 'Exercises Library',
+        label: e.name,
+        sublabel: sub,
+        icon: 'dumbbell',
+        badge: e.category || 'exercise',
+        action: () => navigate('/training'),
+      };
+    });
 
     return [...filteredBase, ...exerciseItems];
   }, [baseCommands, exercises, query, navigate]);
@@ -165,13 +169,19 @@ export default function CommandPalette() {
             type="text"
             className="cmd-input"
             placeholder="Type a command or search exercises..."
+            aria-label="Search commands and exercises"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded="true"
+            aria-controls="cmd-listbox"
+            aria-activedescendant={items[selectedIndex] ? `cmd-opt-${items[selectedIndex].id}` : undefined}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
           <kbd className="cmd-kbd">ESC</kbd>
         </div>
 
-        <div className="cmd-list" ref={listRef} role="listbox">
+        <div className="cmd-list" id="cmd-listbox" ref={listRef} role="listbox" aria-label="Suggestions">
           {items.length === 0 ? (
             <div className="cmd-empty">No matching commands or exercises found.</div>
           ) : (
@@ -185,6 +195,7 @@ export default function CommandPalette() {
                     <div className="cmd-group-title">{item.group}</div>
                   )}
                   <div
+                    id={`cmd-opt-${item.id}`}
                     data-index={idx}
                     role="option"
                     aria-selected={isSelected}

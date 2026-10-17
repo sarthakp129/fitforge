@@ -163,7 +163,7 @@ export default function CoachPanel({ voiceReplies = false, onVoiceFail } = {}) {
     <div className="stack gap-10" style={{ flex: 1, minHeight: 0 }}>
       <div className="chat-scroll" ref={scrollRef} style={{ flex: 1, maxHeight: 'none' }} aria-live="polite">
         {!messages.length && (
-          <Empty icon="✦" title="Ask anything">
+          <Empty icon="spark" title="Ask anything">
             Stalled lift, nagging joint, meal you can’t make work — the answer uses your numbers.
           </Empty>
         )}
@@ -175,7 +175,14 @@ export default function CoachPanel({ voiceReplies = false, onVoiceFail } = {}) {
             )}
           </div>
         ))}
-        {busy && <div className="bubble bubble-ai"><span className="typing"><i /><i /><i /></span></div>}
+        {busy && (
+          <div className="bubble bubble-ai">
+            <span className="typing" aria-label="Coach is thinking...">
+              <span className="sr-only">Coach is thinking...</span>
+              <i /><i /><i />
+            </span>
+          </div>
+        )}
       </div>
 
       {suggestions.length > 0 && !messages.length && (

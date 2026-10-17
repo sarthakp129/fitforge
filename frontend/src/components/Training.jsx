@@ -53,22 +53,22 @@ function RestTimerCard({ timer }) {
   return (
     <Card solid className="row gap-16 rest-pill" style={{ alignItems: 'center' }}>
       <div className="ring-wrap" style={{ width: 76, height: 76 }}>
-        <svg width="76" height="76" viewBox="0 0 76 76" className="timer-ring">
+        <svg width="76" height="76" viewBox="0 0 76 76" className="timer-ring" role="timer" aria-label={`Rest timer: ${secondsToClock(timer.remaining)} remaining`}>
           <circle cx="38" cy="38" r="34" fill="none" className="ring-track" strokeWidth="6" />
           <circle cx="38" cy="38" r="34" fill="none" stroke={ratio < 0.2 ? 'var(--ember)' : 'var(--teal)'} strokeWidth="6"
             strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - ratio)}
             style={{ transition: 'stroke-dashoffset 0.25s linear' }} />
         </svg>
-        <div className="ring-center mono strong" style={{ fontSize: '1.02rem' }}>{secondsToClock(timer.remaining)}</div>
+        <div className="ring-center mono strong" aria-live="polite" style={{ fontSize: '1.02rem' }}>{secondsToClock(timer.remaining)}</div>
       </div>
       <div className="flex-1 stack gap-4">
         <span className="eyebrow">Rest</span>
         <span className="small muted">Next set when the ring closes.</span>
       </div>
       <div className="row gap-6">
-        <Button variant="soft" size="sm" onClick={() => timer.nudge(-15)}>-15s</Button>
-        <Button variant="soft" size="sm" onClick={() => timer.nudge(15)}>+15s</Button>
-        <Button variant="ghost" size="sm" onClick={timer.stop}><Icon name="close" size={14} /></Button>
+        <Button variant="soft" size="sm" onClick={() => timer.nudge(-15)} aria-label="Subtract 15 seconds from rest timer">-15s</Button>
+        <Button variant="soft" size="sm" onClick={() => timer.nudge(15)} aria-label="Add 15 seconds to rest timer">+15s</Button>
+        <Button variant="ghost" size="sm" onClick={timer.stop} aria-label="Close rest timer"><Icon name="close" size={14} /></Button>
       </div>
     </Card>
   );
@@ -157,7 +157,7 @@ function SessionLogger({ session, onClose, onSaved }) {
       weight_kg: Number(s.weight_kg) || 0,
       rpe: s.rpe === '' ? null : Number(s.rpe),
       rest_s: r.rest_s,
-      is_warmup: Number(s.weight_kg) === 0 && Number(s.reps) > 0 ? 0 : 0,
+      is_warmup: Number(s.weight_kg) === 0 && Number(s.reps) > 0 ? 1 : 0,
     })));
     if (!sets.length) return toast('Mark at least one set as done before saving.', 'warn');
     try {
@@ -184,7 +184,7 @@ function SessionLogger({ session, onClose, onSaved }) {
         <div className="row-between" style={{ flexWrap: 'wrap', gap: 12 }}>
           <div className="stack gap-4 flex-1" style={{ minWidth: 200 }}>
             <span className="eyebrow">Live session</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} className="strong" style={{ fontSize: '1.05rem' }} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} aria-label="Workout name" className="strong" style={{ fontSize: '1.05rem' }} />
           </div>
           <div className="row gap-16">
             {[['Sets', totals.sets], ['Volume', `${compact(totals.volume)} kg`], ['Reps', totals.reps], ['Time', secondsToClock((Date.now() - startedAt.current) / 1000)]].map(([l, v]) => (
@@ -221,18 +221,24 @@ function SessionLogger({ session, onClose, onSaved }) {
           <div className="table-scroll">
             <table className="table">
               <thead>
-                <tr><th style={{ width: 40 }}>#</th><th>Weight (kg)</th><th>Reps</th><th>RPE</th><th style={{ width: 92 }} /></tr>
+                <tr>
+                  <th style={{ width: 40 }} scope="col">#</th>
+                  <th scope="col">Weight (kg)</th>
+                  <th scope="col">Reps</th>
+                  <th scope="col">RPE</th>
+                  <th style={{ width: 92 }} scope="col"><span className="sr-only">Actions</span></th>
+                </tr>
               </thead>
               <tbody>
                 {row.sets.map((s, si) => (
                   <tr key={si}>
                     <td className="set-num">{si + 1}</td>
                     <td><Input className={`set-input ${s.done ? 'set-done' : ''}`} type="number" min="0" step="0.5" value={s.weight_kg}
-                      onChange={(e) => updateSet(ri, si, { weight_kg: e.target.value })} disabled={s.done} aria-label={`weight set ${si + 1}`} /></td>
+                      onChange={(e) => updateSet(ri, si, { weight_kg: e.target.value })} disabled={s.done} aria-label={`${row.exercise_name} set ${si + 1} weight (kg)`} /></td>
                     <td><Input className={`set-input ${s.done ? 'set-done' : ''}`} type="number" min="0" max="100" value={s.reps}
-                      onChange={(e) => updateSet(ri, si, { reps: e.target.value })} disabled={s.done} aria-label={`reps set ${si + 1}`} /></td>
+                      onChange={(e) => updateSet(ri, si, { reps: e.target.value })} disabled={s.done} aria-label={`${row.exercise_name} set ${si + 1} reps`} /></td>
                     <td><Input className="set-input" type="number" min="1" max="10" step="0.5" placeholder="—" value={s.rpe}
-                      onChange={(e) => updateSet(ri, si, { rpe: e.target.value })} disabled={s.done} aria-label={`rpe set ${si + 1}`} /></td>
+                      onChange={(e) => updateSet(ri, si, { rpe: e.target.value })} disabled={s.done} aria-label={`${row.exercise_name} set ${si + 1} rpe`} /></td>
                     <td style={{ position: 'relative' }}>
                       {burst && burst.ri === ri && burst.si === si && (
                         <span className="pr-burst" aria-hidden="true">
@@ -639,7 +645,7 @@ export default function Training() {
           ) : (
             <Card solid>
               <Empty
-                icon="◇"
+                icon="dumbbell"
                 title="No session loaded"
                 action={
                   <div className="row gap-8" style={{ marginTop: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
@@ -661,7 +667,7 @@ export default function Training() {
         {/* ------------------------------ history -------------------------- */}
         {tab === 'history' && (
           <div className="stack gap-12">
-            {!history.length && <Card solid><Empty icon="◇" title="No sessions logged yet">Finish a session in the Log tab and it lands here with every set.</Empty></Card>}
+            {!history.length && <Card solid><Empty icon="dumbbell" title="No sessions logged yet">Finish a session in the Log tab and it lands here with every set.</Empty></Card>}
             {history.map((w) => {
               const volume = w.sets.filter((s) => !s.is_warmup).reduce((sum, s) => sum + (s.reps * s.weight_kg), 0);
               return (

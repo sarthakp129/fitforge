@@ -61,9 +61,9 @@ export default function CoachDrawer() {
         type="button"
         ref={fabRef}
         className={`fab ${open ? 'listening' : ''}`}
-        aria-label="Ask the coach"
+        aria-label={open ? 'Close coach' : 'Ask the coach'}
         aria-expanded={open}
-        title="Ask the coach"
+        title={open ? 'Close coach' : 'Ask the coach'}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name={open ? 'close' : 'spark'} size={22} />

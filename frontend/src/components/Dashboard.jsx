@@ -7,7 +7,7 @@ import {
   goalLabel, sourceChip, titleCase,
 } from '../lib/format.js';
 import {
-  Card, CardHead, Button, Chip, Icon, SingleRing, Stat, Bar, Reveal, Empty, Skeleton,
+  Card, CardHead, Button, Chip, Icon, SingleRing, Stat, Bar, Reveal, Empty, Skeleton, Modal, Input,
 } from './ui.jsx';
 import { Heatmap, Sparkline } from './Charts.jsx';
 
@@ -24,6 +24,9 @@ export default function Dashboard() {
   const [heat, setHeat] = useState(null);
   const [weight, setWeight] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [weighModalOpen, setWeighModalOpen] = useState(false);
+  const [weighVal, setWeighVal] = useState('');
+  const [savingWeight, setSavingWeight] = useState(false);
 
   const macros = derived?.macros;
 
@@ -59,16 +62,26 @@ export default function Dashboard() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
-  const logWeight = async () => {
-    const value = window.prompt('Today’s bodyweight (kg):', profile.weight_kg || '');
-    if (value == null) return;
-    const kg = Number(value);
+  const openWeighIn = () => {
+    setWeighVal(profile.weight_kg ? String(profile.weight_kg) : '');
+    setWeighModalOpen(true);
+  };
+
+  const submitWeight = async (e) => {
+    e?.preventDefault?.();
+    const kg = Number(weighVal);
     if (!Number.isFinite(kg) || kg < 30 || kg > 300) return toast('Enter a weight between 30 and 300 kg.', 'warn');
+    setSavingWeight(true);
     try {
       await api.progress.addMetric({ date: todayISO(), weight_kg: kg });
       toast('Weigh-in logged.', 'ok', 2200);
+      setWeighModalOpen(false);
       load();
-    } catch (err) { handleError(err); }
+    } catch (err) {
+      handleError(err);
+    } finally {
+      setSavingWeight(false);
+    }
   };
 
   if (loading) {
@@ -101,19 +114,21 @@ export default function Dashboard() {
               <Chip>{profile.days_per_week || 4}× / week</Chip>
               <Chip>{titleCase(profile.experience || 'intermediate')}</Chip>
               <span
-                className="chip chip-ghost"
+                className="chip chip-ghost row gap-6"
                 title={`Sessions this week: ${headline.sessions || 0} of ${profile.days_per_week || 4} planned`}
+                style={{ padding: '4px 10px 4px 6px', alignItems: 'center' }}
               >
                 <SingleRing
                   value={headline.sessions || 0}
                   max={profile.days_per_week || 4}
-                  size={38}
-                  thickness={5}
+                  size={26}
+                  thickness={3.5}
                   color="var(--teal)"
-                  center={<span className="mono tiny strong">{headline.sessions || 0}/{profile.days_per_week || 4}</span>}
                 />
+                <span className="mono tiny strong">{headline.sessions || 0}/{profile.days_per_week || 4}</span>
+                <span className="tiny muted">sessions</span>
               </span>
-              <Button variant="ghost" size="sm" onClick={logWeight}><Icon name="plus" size={14} /> Weigh-in</Button>
+              <Button variant="ghost" size="sm" onClick={openWeighIn}><Icon name="plus" size={14} /> Weigh-in</Button>
             </div>
           </div>
         </Reveal>
@@ -127,14 +142,14 @@ export default function Dashboard() {
             <Button variant="soft" size="sm" onClick={() => navigate('/nutrition')}>
               <Icon name="flame" size={14} /> Log meal
             </Button>
-            <Button variant="ghost" size="sm" onClick={logWeight}>
+            <Button variant="ghost" size="sm" onClick={openWeighIn}>
               <Icon name="plus" size={14} /> Log weigh-in
             </Button>
             <Button variant="soft" size="sm" onClick={() => setCoachOpen(true)}>
               <Icon name="spark" size={14} /> Ask coach
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setCmdOpen(true)} title="Press ⌘K or Ctrl+K anywhere">
-              <Icon name="search" size={14} /> Search <span className="kbd" style={{ fontSize: '0.72rem', marginLeft: 4 }}>⌘K</span>
+            <Button variant="ghost" size="sm" onClick={() => setCmdOpen(true)} title="Press ⌘K or Ctrl+K anywhere" aria-label="Search (shortcut: Command K or Control K)">
+              <Icon name="search" size={14} /> Search <span className="kbd" aria-hidden="true" style={{ fontSize: '0.72rem', marginLeft: 4 }}>⌘K</span>
             </Button>
           </div>
         </Reveal>
@@ -238,7 +253,7 @@ export default function Dashboard() {
                 </>
               ) : (
                 <Empty
-                  icon="◇"
+                  icon="dumbbell"
                   title="No active plan yet"
                   action={<Button variant="ember" size="sm" onClick={() => navigate('/training')} style={{ marginTop: 10 }}>Generate my plan</Button>}
                 >
@@ -331,6 +346,42 @@ export default function Dashboard() {
           </Reveal>
         </div>
       </div>
+
+      {weighModalOpen && (
+        <Modal
+          open={weighModalOpen}
+          onClose={() => setWeighModalOpen(false)}
+          title="Log Bodyweight"
+          subtitle="Record today's weigh-in to track your progress"
+          footer={
+            <>
+              <Button variant="ghost" onClick={() => setWeighModalOpen(false)} disabled={savingWeight}>
+                Cancel
+              </Button>
+              <Button variant="ember" onClick={submitWeight} loading={savingWeight} disabled={savingWeight || !weighVal}>
+                Save weigh-in
+              </Button>
+            </>
+          }
+        >
+          <form onSubmit={submitWeight} className="stack gap-12">
+            <div className="field">
+              <label className="label" htmlFor="dash-weigh-kg">Today's bodyweight (kg)</label>
+              <Input
+                id="dash-weigh-kg"
+                type="number"
+                step="0.1"
+                min="30"
+                max="300"
+                value={weighVal}
+                onChange={(e) => setWeighVal(e.target.value)}
+                placeholder="e.g. 78.5"
+                autoFocus
+              />
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

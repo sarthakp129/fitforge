@@ -111,10 +111,22 @@ export default function Progress() {
                 {nf(h.total_sessions || 0)} sessions · {compact(h.total_minutes || 0)} minutes · {big3 ? `${nf(big3)} kg estimated big-three total` : 'log a squat, bench and deadlift to see your total'}.
               </p>
             </div>
-            <div className="row gap-8">
+            <div className="row gap-8 flex-wrap">
               <Button variant="ghost" size="sm" onClick={exportJson}><Icon name="download" size={14} /> Export JSON</Button>
               <Button variant="ghost" size="sm" onClick={() => downloadCsv().catch((e) => handleError(e))}><Icon name="download" size={14} /> CSV</Button>
-              <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }}>
+              <label
+                className="btn btn-ghost btn-sm"
+                style={{ cursor: 'pointer' }}
+                tabIndex={0}
+                role="button"
+                aria-label="Import JSON backup"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.currentTarget.querySelector('input')?.click();
+                  }
+                }}
+              >
                 <Icon name="refresh" size={14} /> Import
                 <input type="file" accept="application/json" hidden onChange={(e) => importJson(e.target.files?.[0])} />
               </label>
@@ -165,7 +177,7 @@ export default function Progress() {
                       {m.body_fat_pct ? ` · ${nf(m.body_fat_pct, 1)}%` : ''}
                       {m.waist_cm ? ` · ${nf(m.waist_cm, 0)} cm` : ''}
                     </span>
-                    <Button variant="icon" size="sm" onClick={() => removeMetric(m.id)} aria-label="Delete"><Icon name="close" size={13} /></Button>
+                    <Button variant="icon" size="sm" onClick={() => removeMetric(m.id)} aria-label={`Delete weigh-in from ${fmtDate(m.date)}`}><Icon name="close" size={13} /></Button>
                   </div>
                 ))}
                 {!metrics?.series?.length && <div className="tiny muted">Nothing logged yet.</div>}
@@ -223,11 +235,19 @@ export default function Progress() {
         <Reveal>
           <Card solid className="stack gap-12">
             <CardHead eyebrow="Strength" title="Personal records" subtitle="Heaviest load and estimated 1RM (Epley) per lift." />
-            {!prs?.prs?.length && <Empty icon="◇" title="No weighted sets logged yet">Log a session with real load and your PRs appear here.</Empty>}
+            {!prs?.prs?.length && <Empty icon="chart" title="No weighted sets logged yet">Log a session with real load and your PRs appear here.</Empty>}
             {prs?.prs?.length > 0 && (
               <div className="table-scroll">
                 <table className="table">
-                  <thead><tr><th>Lift</th><th className="table-num">Top set</th><th className="table-num">Best reps</th><th className="table-num">Est. 1RM</th><th className="table-num">Lifetime sets</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th scope="col">Lift</th>
+                      <th scope="col" className="table-num">Top set</th>
+                      <th scope="col" className="table-num">Best reps</th>
+                      <th scope="col" className="table-num">Est. 1RM</th>
+                      <th scope="col" className="table-num">Lifetime sets</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {prs.prs.map((p) => (
                       <tr key={p.exercise_id}>

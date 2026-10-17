@@ -19,11 +19,13 @@ export function LineChart({
     .map((d, i) => ({ i, x: d[labelKey], y: Number(d[valueKey]) || 0, raw: d }))
     .filter((p) => Number.isFinite(p.y));
 
-  const { path, areaPath, min, max, coords } = useMemo(() => {
-    if (pts.length < 2) return { path: '', areaPath: '', min: 0, max: 1, coords: [] };
+  const { path, areaPath, min, max, actualMin, actualMax, coords } = useMemo(() => {
+    if (pts.length < 2) return { path: '', areaPath: '', min: 0, max: 1, actualMin: 0, actualMax: 1, coords: [] };
     const ys = pts.map((p) => p.y);
     let lo = Math.min(...ys);
     let hi = Math.max(...ys);
+    const actualMin = lo;
+    const actualMax = hi;
     if (targetLine != null) { lo = Math.min(lo, targetLine); hi = Math.max(hi, targetLine); }
     const pad = (hi - lo) * 0.18 || Math.max(1, hi * 0.1);
     lo -= pad; hi += pad;
@@ -42,7 +44,7 @@ export function LineChart({
       const mx = (prev.cx + cur.cx) / 2;
       d += ` C ${mx} ${prev.cy}, ${mx} ${cur.cy}, ${cur.cx} ${cur.cy}`;
     }
-    return { path: d, areaPath: `${d} L ${W} ${H} L 0 ${H} Z`, min: lo, max: hi, coords };
+    return { path: d, areaPath: `${d} L ${W} ${H} L 0 ${H} Z`, min: lo, max: hi, actualMin, actualMax, coords };
   }, [pts, height, targetLine]);
 
   if (pts.length < 2) {
@@ -59,6 +61,7 @@ export function LineChart({
       <div style={{ position: 'relative' }}>
         <svg
           width="100%" height={height} viewBox={`0 0 600 ${height}`}
+          role="img" aria-label={`Chart showing ${data.length} measurements`}
           preserveAspectRatio="none" style={{ display: 'block', overflow: 'visible' }}
           onPointerMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -75,10 +78,10 @@ export function LineChart({
           </defs>
           {[0.25, 0.5, 0.75].map((f) => (
             <line key={f} x1="0" x2="600" y1={height * f} y2={height * f}
-              stroke="rgba(11,18,32,0.06)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+              stroke="var(--line-2)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
           ))}
           {targetY != null && (
-            <line x1="0" x2="600" y1={targetY} y2={targetY} stroke="rgba(14,165,164,0.55)"
+            <line x1="0" x2="600" y1={targetY} y2={targetY} stroke="var(--teal)" strokeOpacity="0.75"
               strokeWidth="1.5" strokeDasharray="5 5" vectorEffect="non-scaling-stroke" />
           )}
           {area && <path d={areaPath} fill={`url(#g-${gid})`} />}
@@ -86,7 +89,7 @@ export function LineChart({
             strokeLinejoin="round" vectorEffect="non-scaling-stroke" style={{ stroke: color }} />
           {active && (
             <>
-              <line x1={active.cx} x2={active.cx} y1="0" y2={height} stroke="rgba(11,18,32,0.16)"
+              <line x1={active.cx} x2={active.cx} y1="0" y2={height} stroke="var(--line)"
                 strokeWidth="1" vectorEffect="non-scaling-stroke" />
               <circle cx={active.cx} cy={active.cy} r="5.5" strokeWidth="2.6"
                 vectorEffect="non-scaling-stroke" style={{ stroke: color, fill: 'var(--solid)' }} />
@@ -110,7 +113,7 @@ export function LineChart({
       <div className="row-between tiny muted mono">
         <span>{pts[0].raw.date ? fmtDate(pts[0].raw.date) : pts[0].x}</span>
         <span style={{ color: 'var(--muted-2)' }}>
-          peak {compact(max)} · low {compact(min)}
+          peak {compact(actualMax)} · low {compact(actualMin)}
         </span>
         <span>{pts[pts.length - 1].raw.date ? fmtDate(pts[pts.length - 1].raw.date) : pts[pts.length - 1].x}</span>
       </div>
@@ -134,7 +137,7 @@ export function BarChart({ data, height = 170, color = 'var(--teal)', valueKey =
               style={{
                 width: '100%', maxWidth: 46, borderRadius: '7px 7px 3px 3px',
                 height: `${Math.max(2, (r.value / max) * (height - 34))}px`,
-                background: `linear-gradient(180deg, color-mix(in srgb, ${color} 70%, white), ${color})`,
+                background: `linear-gradient(180deg, color-mix(in srgb, ${color} 80%, var(--surface-2)), ${color})`,
                 transition: 'height 0.7s cubic-bezier(.22,1,.36,1)',
               }}
             />
@@ -240,9 +243,12 @@ export function Sparkline({ values = [], color = 'var(--ember)', width = 92, hei
   if (nums.length < 2) return <svg width={width} height={height} />;
   const lo = Math.min(...nums);
   const hi = Math.max(...nums);
+  const diff = hi - lo;
   const pts = nums.map((v, i) => {
     const x = (i / (nums.length - 1)) * width;
-    const y = height - ((v - lo) / (hi - lo || 1)) * (height - 4) - 2;
+    const y = diff === 0
+      ? height / 2
+      : height - ((v - lo) / diff) * (height - 6) - 3;
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
   return (
