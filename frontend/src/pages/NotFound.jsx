@@ -15,8 +15,8 @@ export default function NotFound() {
           was typed by someone mid-set.
         </p>
         <div className="row gap-10" style={{ flexWrap: 'wrap', justifyContent: 'center' }}>
-          <Link to="/"><Button variant="ember"><Icon name="grid" size={15} /> Go home</Button></Link>
-          <Link to="/features"><Button variant="ghost">See features</Button></Link>
+          <Link to="/" className="btn btn-ember"><Icon name="grid" size={15} /> Go home</Link>
+          <Link to="/#features" className="btn btn-ghost">See features</Link>
           <Button variant="ghost" onClick={() => window.history.back()}>Go back</Button>
         </div>
       </div>

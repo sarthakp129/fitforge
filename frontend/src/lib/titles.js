@@ -9,15 +9,6 @@ export const TITLES = {
   '/onboarding': 'Set up your profile · FitForge',
   '/login': 'Sign in · FitForge',
   '/signup': 'Create your account · FitForge',
-  '/features': 'Features · FitForge',
-  '/how-it-works': 'How it works · FitForge',
-  '/ai': 'AI & token budget · FitForge',
-  '/get-started': 'Get started · FitForge',
-  '/faq': 'FAQ · FitForge',
-  '/exercises': 'Exercise library · FitForge',
-  '/about': 'About · FitForge',
-  '/privacy': 'Privacy · FitForge',
-  '/terms': 'Terms · FitForge',
 };
 
 export default TITLES;

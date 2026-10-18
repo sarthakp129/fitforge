@@ -41,6 +41,10 @@ export const useStore = create((set, get) => ({
   cmdOpen: false,
   setCmdOpen: (open) => set({ cmdOpen: Boolean(open) }),
 
+  /** theme: permanently light */
+  theme: 'light',
+  setTheme: () => {},
+  toggleTheme: () => {},
 
   /* -------------------------------- auth -------------------------------- */
   async boot() {

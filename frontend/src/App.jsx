@@ -91,7 +91,7 @@ export default function App() {
 
       {apiDown && token && (
         <div className="wrap" style={{ paddingTop: 'calc(var(--nav-h) + 14px)' }}>
-          <Card className="row gap-12" style={{ borderColor: 'rgba(251,191,36,0.35)', background: 'var(--amber-soft)' }}>
+          <Card className="row gap-12" style={{ borderColor: 'color-mix(in srgb, var(--amber) 40%, transparent)', background: 'var(--amber-soft)' }}>
             <span className="chip chip-warn">API offline</span>
             <span className="small flex-1">
               The frontend cannot reach the backend. Start it with <span className="mono">docker compose up</span> or

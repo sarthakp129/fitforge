@@ -24,7 +24,7 @@ export default function AppLayout() {
     <>
       <TopBar />
       {/* nested routes (the pages) render here */}
-      <main id="main"><Outlet /></main>
+      <main id="main" tabIndex={-1} style={{ outline: 'none' }}><Outlet /></main>
       <BottomNav />
       <CoachDrawer />
       <CommandPalette />

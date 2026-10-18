@@ -58,26 +58,13 @@ export default function TopBar() {
             ))}
           </div>
 
-          <div className="row gap-8 hide-mobile">
+          <div className="row gap-8" style={{ marginLeft: 'auto' }}>
             <button
               type="button"
               className="nav-tool-btn"
               onClick={() => setCmdOpen(true)}
-              aria-label="Command Palette (Ctrl+K)"
-              title="Command Palette (Ctrl+K)"
-            >
-              <Icon name="search" size={16} />
-            </button>
-            <UserMenu />
-          </div>
-
-          {/* mobile: quick search + avatar */}
-          <div className="row gap-8 show-mobile">
-            <button
-              type="button"
-              className="nav-tool-btn"
-              onClick={() => setCmdOpen(true)}
-              aria-label="Search"
+              aria-label="Command Palette (Command K or Control K)"
+              title="Command Palette (Command K or Control K)"
             >
               <Icon name="search" size={16} />
             </button>

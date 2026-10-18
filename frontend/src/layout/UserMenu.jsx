@@ -18,7 +18,24 @@ export default function UserMenu() {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') { setOpen(false); btnRef.current?.focus(); }
+      if (e.key === 'Escape') {
+        setOpen(false);
+        btnRef.current?.focus();
+      } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        const items = wrapRef.current?.querySelectorAll('[role="menuitem"]');
+        if (!items || !items.length) return;
+        e.preventDefault();
+        const currentIndex = Array.from(items).indexOf(document.activeElement);
+        if (currentIndex === -1) {
+          items[0]?.focus();
+        } else if (e.key === 'ArrowDown') {
+          const nextIndex = (currentIndex + 1) % items.length;
+          items[nextIndex]?.focus();
+        } else {
+          const prevIndex = (currentIndex - 1 + items.length) % items.length;
+          items[prevIndex]?.focus();
+        }
+      }
     };
     const onDown = (e) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false);
@@ -36,6 +53,7 @@ export default function UserMenu() {
   const item = (label, icon, onClick) => (
     <button
       type="button"
+      role="menuitem"
       className="menu-item"
       onClick={() => { setOpen(false); onClick(); }}
     >
@@ -50,6 +68,7 @@ export default function UserMenu() {
         ref={btnRef}
         className="avatar"
         aria-label="User menu"
+        title={`User menu for ${user?.name || 'account'}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
@@ -62,7 +81,7 @@ export default function UserMenu() {
             <div className="strong" style={{ fontSize: '0.92rem' }}>{user?.name}</div>
             <div className="tiny muted wrap-text">{user?.email}</div>
           </div>
-          <div className="divider" style={{ margin: '10px 0' }} />
+          <div className="divider" role="separator" style={{ margin: '10px 0' }} />
           {item('Settings', 'settings', () => navigate('/settings'))}
           {item('Sign out', 'close', () => { logout(); navigate('/'); })}
         </div>
