@@ -1,22 +1,31 @@
 /**
  * Password hashing + JWT, both on node:crypto. Zero dependencies.
  */
-import { randomBytes, scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
+import { randomBytes, scrypt, scryptSync, timingSafeEqual, createHmac } from 'node:crypto';
+import { promisify } from 'node:util';
 import config from '../config.js';
 
 const KEYLEN = 32;
+const scryptAsync = promisify(scrypt);
 
-export function hashPassword(password) {
+/** Async so an expensive password operation never blocks every API request. */
+export async function hashPassword(password) {
   const salt = randomBytes(16).toString('hex');
-  const derived = scryptSync(String(password), salt, KEYLEN).toString('hex');
+  const derived = (await scryptAsync(String(password), salt, KEYLEN)).toString('hex');
   return `scrypt$${salt}$${derived}`;
 }
 
-export function verifyPassword(password, stored) {
+/** Only for the local/demo data seeder, which runs before the HTTP server. */
+export function hashPasswordForSeed(password) {
+  const salt = randomBytes(16).toString('hex');
+  return `scrypt$${salt}$${scryptSync(String(password), salt, KEYLEN).toString('hex')}`;
+}
+
+export async function verifyPassword(password, stored) {
   if (typeof stored !== 'string') return false;
   const [scheme, salt, hash] = stored.split('$');
   if (scheme !== 'scrypt' || !salt || !hash) return false;
-  const derived = scryptSync(String(password), salt, KEYLEN);
+  const derived = await scryptAsync(String(password), salt, KEYLEN);
   const expected = Buffer.from(hash, 'hex');
   if (derived.length !== expected.length) return false;
   return timingSafeEqual(derived, expected);

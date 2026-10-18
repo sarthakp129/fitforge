@@ -1,18 +1,23 @@
 import { get, run } from '../db.js';
 import { verifyToken } from '../lib/crypto.js';
 
-/** Require a valid bearer token; attaches req.user = { id, email, name }. */
+/** Require a valid bearer token or first-party HttpOnly session cookie. */
 export function auth(req, res, next) {
   const header = req.headers.authorization || '';
+  const cookieToken = String(req.headers.cookie || '').split(';').map((v) => v.trim())
+    .find((v) => v.startsWith('fitforge_session='))?.slice('fitforge_session='.length);
   const token = header.startsWith('Bearer ')
     ? header.slice(7).trim()
-    : (req.query.token || req.headers['x-token'] || '');
+    : (cookieToken || '');
   const claims = verifyToken(token);
   if (!claims || !claims.sub) {
     return res.status(401).json({ error: 'unauthorized', message: 'Missing or expired token.' });
   }
-  const user = get('SELECT id, email, name, created_at FROM users WHERE id = ?', Number(claims.sub));
+  const user = get('SELECT id, email, name, created_at, session_version FROM users WHERE id = ?', Number(claims.sub));
   if (!user) return res.status(401).json({ error: 'unauthorized', message: 'Account no longer exists.' });
+  if (Number(claims.sv || 0) !== Number(user.session_version || 1)) {
+    return res.status(401).json({ error: 'unauthorized', message: 'Session has been revoked.' });
+  }
   req.user = user;
   next();
 }

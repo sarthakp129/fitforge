@@ -50,18 +50,16 @@ export const useStore = create((set, get) => ({
   async boot() {
     if (get().booted) return;
     set({ booted: true });
-    if (!get().token) {
-      // still fetch AI status so the landing page can show the budget meter
-      get().refreshAiStatus().catch(() => {});
-      return;
-    }
     try {
       const me = await api.auth.me();
-      set({ user: me.user, profile: { ...emptyProfile, ...me.profile }, derived: { macros: me.targets, tdee: me.tdee } });
+      set({ token: 'session', user: me.user, profile: { ...emptyProfile, ...me.profile }, derived: { macros: me.targets, tdee: me.tdee } });
       await get().refreshAiStatus();
     } catch (err) {
       setToken(null);
       set({ token: null, user: null });
+      // Public landing pages intentionally receive 401 here; status is still
+      // useful for the anonymous product shell.
+      get().refreshAiStatus().catch(() => {});
       if (err.status !== 401) get().toast(err.message, 'err');
     }
   },
@@ -69,7 +67,7 @@ export const useStore = create((set, get) => ({
   async login(email, password) {
     const res = await api.auth.login({ email, password });
     setToken(res.token);
-    set({ token: res.token, user: res.user, profile: { ...emptyProfile, ...res.profile }, view: 'dashboard' });
+    set({ token: 'session', user: res.user, profile: { ...emptyProfile, ...res.profile }, view: 'dashboard' });
     await get().refreshProfile();
     await get().refreshAiStatus();
     get().toast(`Welcome back, ${res.user.name.split(' ')[0]}.`, 'ok');
@@ -79,13 +77,14 @@ export const useStore = create((set, get) => ({
   async register(name, email, password) {
     const res = await api.auth.register({ name, email, password });
     setToken(res.token);
-    set({ token: res.token, user: res.user, profile: { ...emptyProfile, ...res.profile }, view: 'onboarding' });
+    set({ token: 'session', user: res.user, profile: { ...emptyProfile, ...res.profile }, view: 'onboarding' });
     await get().refreshAiStatus();
     get().toast('Account created. Let’s build your profile.', 'ok');
     return res;
   },
 
-  logout() {
+  async logout() {
+    try { await api.auth.logout(); } catch { /* clear local state even if offline */ }
     setToken(null);
     set({ token: null, user: null, profile: { ...emptyProfile }, derived: null, view: 'dashboard' });
     get().toast('Signed out.', 'info', 2200);

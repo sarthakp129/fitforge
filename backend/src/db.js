@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
   email         TEXT NOT NULL UNIQUE,
   name          TEXT NOT NULL,
   password_hash TEXT NOT NULL,
+  session_version INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -173,6 +174,13 @@ CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at);
 `;
 
 db.exec(SCHEMA);
+
+// Additive migration for databases created before session invalidation existed.
+// SQLite has no portable ADD COLUMN IF NOT EXISTS form on all supported versions.
+const userColumns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+if (!userColumns.includes('session_version')) {
+  db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1');
+}
 
 /* ------------------------------ helpers --------------------------------- */
 

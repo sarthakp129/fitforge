@@ -5,12 +5,16 @@
 
 const TOKEN_KEY = 'fitforge.token';
 const BASE = import.meta.env.VITE_API_BASE || '';
+let memoryToken = null;
 
 export const getToken = () => {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+  try { return memoryToken || localStorage.getItem(TOKEN_KEY); } catch { return memoryToken; }
 };
 export const setToken = (t) => {
-  try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
+  // First-party sessions are HttpOnly cookies. Remove legacy persisted JWTs;
+  // an in-memory compatibility token is intentionally not retained.
+  memoryToken = t || null;
+  try { localStorage.removeItem(TOKEN_KEY); } catch { /* private mode */ }
 };
 
 /**
@@ -52,6 +56,7 @@ async function request(path, { method = 'GET', body, auth = true, signal, raw = 
       headers,
       signal,
       body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: 'same-origin',
     });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
@@ -87,7 +92,7 @@ export async function streamPost(path, body, onEvent, { signal } = {}) {
   if (token) headers.authorization = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}?stream=1`, {
-    method: 'POST', headers, body: JSON.stringify({ ...(body || {}), stream: true }), signal,
+    method: 'POST', headers, body: JSON.stringify({ ...(body || {}), stream: true }), signal, credentials: 'same-origin',
   });
 
   if (!res.ok || !res.headers.get('content-type')?.includes('text/event-stream')) {
@@ -135,6 +140,7 @@ export const api = {
     login: (payload) => request('/api/auth/login', { method: 'POST', body: payload, auth: false }),
     me: () => request('/api/auth/me'),
     changePassword: (payload) => request('/api/auth/change-password', { method: 'POST', body: payload }),
+    logout: () => request('/api/auth/logout', { method: 'POST', body: {} }),
   },
 
   profile: {

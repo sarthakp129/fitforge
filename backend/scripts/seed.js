@@ -12,7 +12,7 @@
  * rows, so the demo always looks fresh without touching real accounts.
  */
 import { get, run, db } from '../src/db.js';
-import { hashPassword } from '../src/lib/crypto.js';
+import { hashPasswordForSeed } from '../src/lib/crypto.js';
 import { buildTrainingPlan, buildNutritionPlan, FOODS, EXERCISES } from '../src/services/planEngine.js';
 
 export const DEMO_EMAIL = 'xyz@gmail.com';
@@ -64,11 +64,11 @@ export function seedDemo({ verbose = true } = {}) {
     run('DELETE FROM metrics WHERE user_id = ?', userId);
     run('DELETE FROM ai_plans WHERE user_id = ?', userId);
     run('DELETE FROM chat_messages WHERE user_id = ?', userId);
-    run('UPDATE users SET password_hash = ? WHERE id = ?', hashPassword(DEMO_PASSWORD), userId);
+    run('UPDATE users SET password_hash = ? WHERE id = ?', hashPasswordForSeed(DEMO_PASSWORD), userId);
   } else {
     const r = run(
       'INSERT INTO users (email, name, password_hash) VALUES (?, ?, ?)',
-      DEMO_EMAIL, 'Demo Athlete', hashPassword(DEMO_PASSWORD)
+      DEMO_EMAIL, 'Demo Athlete', hashPasswordForSeed(DEMO_PASSWORD)
     );
     userId = r.lastInsertRowid;
     run('INSERT INTO profiles (user_id) VALUES (?)', userId);
