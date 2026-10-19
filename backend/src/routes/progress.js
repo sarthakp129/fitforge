@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { all, get, run, today, tx } from '../db.js';
+import { all, get, run, today, tx, parseJson } from '../db.js';
 import { auth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errors.js';
 import { clamp, round, estimatedOneRM, macroTargets } from '../services/nutrition.js';
@@ -274,7 +274,7 @@ router.get('/export', (req, res) => {
     })),
     nutrition: all('SELECT * FROM nutrition_logs WHERE user_id = ? ORDER BY date', uid),
     plans: all(`SELECT id, kind, title, payload, source, model, created_at FROM ai_plans WHERE user_id = ? ORDER BY id`, uid)
-      .map((p) => ({ ...p, payload: JSON.parse(p.payload) })),
+      .map((p) => ({ ...p, payload: parseJson(p.payload, {}) })),
   };
   res.json(payload);
 });
