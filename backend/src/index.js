@@ -21,7 +21,10 @@ import aiRoutes from './routes/ai.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-app.set('trust proxy', 1);
+// Only enable proxy-derived client addressing when a deployment explicitly
+// declares its trusted hop count. Direct/local deployments must not trust
+// client-supplied forwarding headers.
+app.set('trust proxy', Number.isInteger(Number(process.env.TRUST_PROXY_HOPS)) ? Number(process.env.TRUST_PROXY_HOPS) : false);
 app.disable('x-powered-by');
 
 app.use(cors({
@@ -37,6 +40,7 @@ app.use((req, res, next) => {
     'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.groq.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
   });
   next();
 });
@@ -49,7 +53,7 @@ if (!config.isProd) {
     const t = Date.now();
     res.on('finish', () => {
       if (req.path.startsWith('/api')) {
-        console.log(`${req.method} ${req.originalUrl} → ${res.statusCode} (${Date.now() - t}ms)`);
+        console.log(`${req.method} ${req.path} → ${res.statusCode} (${Date.now() - t}ms)`);
       }
     });
     next();

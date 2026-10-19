@@ -20,13 +20,11 @@ services:
       DATA_DIR: /app/data
       # CORS is not needed when the web tier proxies /api on the same origin.
       # Set it explicitly if you serve the SPA from somewhere else.
-      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8081}
+      TRUST_PROXY_HOPS: 1
     volumes:
       # SQLite lives here. Losing this volume loses every workout and meal.
       - fitforge-data:/app/data
-    ports:
-      # Handy for curl/Postman. Remove this block to keep the API private.
-      - "${API_PORT:-8080}:8080"
     healthcheck:
       test:
         - CMD

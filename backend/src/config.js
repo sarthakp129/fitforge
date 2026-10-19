@@ -43,7 +43,7 @@ export const config = {
   jwtTtlSeconds: num(process.env.JWT_TTL_SECONDS, 60 * 60 * 24 * 30),
 
   // --- cors -------------------------------------------------------------
-  corsOrigins: str('CORS_ORIGINS', '*')
+  corsOrigins: str('CORS_ORIGINS', str('NODE_ENV', 'development') === 'production' ? '' : '*')
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
