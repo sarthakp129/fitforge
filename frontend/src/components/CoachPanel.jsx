@@ -185,12 +185,12 @@ export default function CoachPanel({ voiceReplies = false, onVoiceFail } = {}) {
         )}
       </div>
 
-      {suggestions.length > 0 && !messages.length && (
-        <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
-          {suggestions.slice(0, 3).map((s) => (
-            // full text stays in the DOM (screen readers + tests); CSS clips it
-            <Chip key={s} tone="ghost" onClick={() => send(s)} title={s}
-              style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {suggestions.length > 0 && !input && (
+        <div className="row gap-6 flex-wrap" style={{ padding: '2px 0' }}>
+          {suggestions.slice(0, 2).map((s) => (
+            <Chip key={s} tone="ghost" size="sm" onClick={() => send(s)} title={s}
+              style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: '0.78rem', cursor: 'pointer' }}>
+              <Icon name="spark" size={12} style={{ color: 'var(--ember)', marginRight: 4 }} />
               {s}
             </Chip>
           ))}

@@ -60,7 +60,7 @@ export default function CoachDrawer() {
       <button
         type="button"
         ref={fabRef}
-        className={`fab ${open ? 'listening' : ''}`}
+        className={`fab ${open ? 'fab-open listening' : ''}`}
         aria-label={open ? 'Close coach' : 'Ask the coach'}
         aria-expanded={open}
         title={open ? 'Close coach' : 'Ask the coach'}
@@ -93,6 +93,9 @@ export default function CoachDrawer() {
               </Button>
               <Button variant="icon" size="sm" onClick={clear} aria-label="Clear conversation" title="Clear conversation">
                 <Icon name="trash" size={14} />
+              </Button>
+              <Button variant="icon" size="sm" onClick={() => setOpen(false)} aria-label="Close coach" title="Close coach">
+                <Icon name="close" size={15} />
               </Button>
             </div>
             <div className="coach-pop-body">

@@ -7,6 +7,7 @@ const TABS = [
   { to: '/training', label: 'Training', icon: 'dumbbell' },
   { to: '/nutrition', label: 'Nutrition', icon: 'flame' },
   { to: '/progress', label: 'Progress', icon: 'chart' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ];
 
 /** Mobile-only glass tab bar. Settings lives in the user menu, per spec.

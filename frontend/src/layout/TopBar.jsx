@@ -11,6 +11,7 @@ const LINKS = [
   { to: '/training', label: 'Training', icon: 'dumbbell' },
   { to: '/nutrition', label: 'Nutrition', icon: 'flame' },
   { to: '/progress', label: 'Progress', icon: 'chart' },
+  { to: '/settings', label: 'Settings', icon: 'settings' },
 ];
 
 /** Slim glass top bar for the logged-in app. NavLink gives us active states
