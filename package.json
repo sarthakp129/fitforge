@@ -1,0 +1,21 @@
+{
+  "name": "fitforge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "FitForge — Tactile Strength & Nutrition Engineering.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend install && npm --prefix frontend run build",
+    "start": "node --no-warnings backend/src/index.js",
+    "test": "npm --prefix backend test && npm --prefix frontend run test:render"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "google-auth-library": "^11.3.1"
+  }
+}
