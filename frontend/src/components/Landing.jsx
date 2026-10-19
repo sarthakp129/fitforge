@@ -104,7 +104,7 @@ const FAQS = [
 ];
 
 export default function Landing() {
-  const { login, register, handleError } = useStore();
+  const { login, register, loginDemo, handleError } = useStore();
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [errors, setErrors] = useState({});
@@ -224,9 +224,10 @@ export default function Landing() {
     setBusy(true);
     setApiError('');
     try {
-      await login('xyz@gmail.com', 'xyz');
+      await loginDemo();
     } catch (err) {
       setApiError(err.message || 'Demo login failed.');
+      handleError(err);
     } finally {
       setBusy(false);
     }
@@ -291,11 +292,17 @@ export default function Landing() {
           </nav>
 
           <div className="row gap-8">
-            {demo && (
-              <Button variant="ghost" size="sm" onClick={demoLogin} disabled={busy} loading={busy} title="One-click demo account">
-                <Icon name="play" size={13} /> Demo
-              </Button>
-            )}
+            <Button
+              variant="soft"
+              size="sm"
+              onClick={demoLogin}
+              disabled={busy}
+              loading={busy}
+              title="Instant 1-click Demo (Explore without signing up)"
+              aria-label="Demo account"
+            >
+              <Icon name="play" size={13} /> Demo
+            </Button>
             <Button variant="ember" size="sm" onClick={() => { setMode('login'); scrollTo('access'); }}>
               Sign in
             </Button>
@@ -322,11 +329,17 @@ export default function Landing() {
               <Button variant="ember" size="lg" onClick={() => { setMode('register'); scrollTo('access'); }}>
                 Create free account <Icon name="arrowRight" size={17} />
               </Button>
-              {demo && (
-                <Button variant="soft" size="lg" onClick={demoLogin} disabled={busy} loading={busy}>
-                  <Icon name="play" size={15} /> Try the demo
-                </Button>
-              )}
+              <Button
+                variant="soft"
+                size="lg"
+                onClick={demoLogin}
+                disabled={busy}
+                loading={busy}
+                title="Instant 1-click Demo Account"
+                aria-label="Demo account"
+              >
+                <Icon name="play" size={15} /> Demo
+              </Button>
               <Button variant="ghost" size="lg" onClick={() => scrollTo('calculator')}>
                 <Icon name="target" size={16} /> Live calculator
               </Button>
@@ -1015,11 +1028,19 @@ export default function Landing() {
                   onError={(err) => setApiError(err.message)}
                 />
 
-                {demo && mode === 'login' && (
-                  <Button type="button" variant="soft" size="lg" onClick={demoLogin} disabled={busy} block>
-                    <Icon name="play" size={15} /> Try the demo account
-                  </Button>
-                )}
+                <Button
+                  type="button"
+                  variant="soft"
+                  size="lg"
+                  onClick={demoLogin}
+                  disabled={busy}
+                  loading={busy}
+                  block
+                  title="Instant 1-click Demo Account (Bypasses manual sign-in)"
+                  aria-label="Demo account"
+                >
+                  <Icon name="play" size={15} /> Demo (Instant 1-Click Login)
+                </Button>
               </form>
               <p className="tiny muted center" style={{ marginTop: 14 }}>Free and private — everything stays on your server.</p>
             </Card>

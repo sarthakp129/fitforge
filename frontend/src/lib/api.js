@@ -56,7 +56,7 @@ async function request(path, { method = 'GET', body, auth = true, signal, raw = 
       headers,
       signal,
       body: body === undefined ? undefined : JSON.stringify(body),
-      credentials: 'same-origin',
+      credentials: 'include',
     });
   } catch (err) {
     if (err.name === 'AbortError') throw err;
@@ -136,6 +136,7 @@ export const api = {
   index: () => request('/api', { auth: false }),
 
   auth: {
+    demo: () => request('/api/auth/demo', { method: 'POST', auth: false }),
     config: () => request('/api/auth/config', { auth: false }),
     register: (payload) => request('/api/auth/register', { method: 'POST', body: payload, auth: false }),
     login: (payload) => request('/api/auth/login', { method: 'POST', body: payload, auth: false }),

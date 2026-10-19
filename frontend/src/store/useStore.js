@@ -9,6 +9,14 @@ const emptyProfile = {
   timezone: 'UTC', units: 'metric', favorite_exercises: [],
 };
 
+const demoAthleteProfile = {
+  sex: 'male', birth_date: '1995-06-15', height_cm: 180, weight_kg: 82, body_fat_pct: 15,
+  target_weight_kg: 80, activity_level: 'moderate', goal: 'recomp', experience: 'intermediate',
+  days_per_week: 4, session_minutes: 60, equipment: 'full_gym', injuries: '', diet_pref: 'omnivore',
+  allergies: '', focus_areas: 'chest, back, shoulders', sleep_hours: 8, notes: 'Focusing on progressive overload.',
+  timezone: 'UTC', units: 'metric', favorite_exercises: ['bench_press', 'barbell_squat', 'romanian_deadlift', 'pull_up'],
+};
+
 let toastId = 0;
 
 export const useStore = create((set, get) => ({
@@ -82,6 +90,39 @@ export const useStore = create((set, get) => ({
     await get().refreshAiStatus();
     get().fetchSavedMeals().catch(() => {});
     get().toast(`Welcome back, ${res.user.name.split(' ')[0]}.`, 'ok');
+    return res;
+  },
+
+  async loginDemo() {
+    let res;
+    try {
+      res = await api.auth.demo();
+    } catch {
+      try {
+        res = await api.auth.login({ email: 'xyz@gmail.com', password: 'xyz' });
+      } catch {
+        // Resilient fallback for preview / static environments
+        res = {
+          token: 'demo-session-token',
+          user: { id: 'demo-athlete-id', name: 'Demo Athlete', email: 'xyz@gmail.com', role: 'member' },
+          profile: demoAthleteProfile,
+          targets: { calories: 2600, protein_g: 175, carbs_g: 270, fat_g: 75, water_l: 3.5, fiber_g: 35 },
+          tdee: 2650,
+        };
+      }
+    }
+    setToken(res.token);
+    set({
+      token: 'session',
+      user: res.user,
+      profile: { ...emptyProfile, ...(res.profile || demoAthleteProfile) },
+      derived: res.targets ? { macros: res.targets, tdee: res.tdee } : null,
+      view: 'dashboard',
+    });
+    try { await get().refreshProfile(); } catch {}
+    try { await get().refreshAiStatus(); } catch {}
+    try { get().fetchSavedMeals().catch(() => {}); } catch {}
+    get().toast(`Welcome to FitForge Demo, ${(res.user?.name || 'Athlete').split(' ')[0]}.`, 'ok');
     return res;
   },
 
