@@ -101,7 +101,7 @@ function dayStreak(userId) {
   }
 
   const todayStr = today();
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = new Date(Date.parse(`${todayStr}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
   let current = 0;
   if (dates[0] === todayStr || dates[0] === yesterday) {
     current = 1;
