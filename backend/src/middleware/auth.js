@@ -13,7 +13,7 @@ export function auth(req, res, next) {
   if (!claims || !claims.sub) {
     return res.status(401).json({ error: 'unauthorized', message: 'Missing or expired token.' });
   }
-  const user = get('SELECT id, email, name, created_at, session_version FROM users WHERE id = ?', Number(claims.sub));
+  const user = get('SELECT id, email, name, created_at, session_version, google_id FROM users WHERE id = ?', Number(claims.sub));
   if (!user) return res.status(401).json({ error: 'unauthorized', message: 'Account no longer exists.' });
   if (Number(claims.sv || 0) !== Number(user.session_version || 1)) {
     return res.status(401).json({ error: 'unauthorized', message: 'Session has been revoked.' });

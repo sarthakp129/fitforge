@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS users (
   name          TEXT NOT NULL,
   password_hash TEXT NOT NULL,
   session_version INTEGER NOT NULL DEFAULT 1,
+  google_id     TEXT UNIQUE,
   created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -58,6 +59,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   focus_areas    TEXT DEFAULT '',
   sleep_hours    REAL DEFAULT 7,
   notes          TEXT DEFAULT '',
+  timezone       TEXT DEFAULT 'UTC',
+  units          TEXT DEFAULT 'metric',
+  favorite_exercises TEXT DEFAULT '[]',
   updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -171,15 +175,43 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_chat_user ON chat_messages(user_id, created_at);
+
+CREATE TABLE IF NOT EXISTS saved_meals (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  items      TEXT NOT NULL DEFAULT '[]',
+  calories   REAL DEFAULT 0,
+  protein_g  REAL DEFAULT 0,
+  carbs_g    REAL DEFAULT 0,
+  fat_g      REAL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_saved_meals_user ON saved_meals(user_id);
 `;
 
 db.exec(SCHEMA);
 
-// Additive migration for databases created before session invalidation existed.
+// Additive migration for databases created before session invalidation or Google identity existed.
 // SQLite has no portable ADD COLUMN IF NOT EXISTS form on all supported versions.
 const userColumns = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
 if (!userColumns.includes('session_version')) {
   db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1');
+}
+if (!userColumns.includes('google_id')) {
+  db.exec('ALTER TABLE users ADD COLUMN google_id TEXT');
+}
+db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id)');
+
+const profileColumns = db.prepare('PRAGMA table_info(profiles)').all().map((c) => c.name);
+if (!profileColumns.includes('timezone')) {
+  db.exec("ALTER TABLE profiles ADD COLUMN timezone TEXT DEFAULT 'UTC'");
+}
+if (!profileColumns.includes('units')) {
+  db.exec("ALTER TABLE profiles ADD COLUMN units TEXT DEFAULT 'metric'");
+}
+if (!profileColumns.includes('favorite_exercises')) {
+  db.exec("ALTER TABLE profiles ADD COLUMN favorite_exercises TEXT DEFAULT '[]'");
 }
 
 /* ------------------------------ helpers --------------------------------- */

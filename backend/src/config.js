@@ -41,6 +41,7 @@ export const config = {
   // --- auth -------------------------------------------------------------
   jwtSecret: str('JWT_SECRET', ''),
   jwtTtlSeconds: num(process.env.JWT_TTL_SECONDS, 60 * 60 * 24 * 30),
+  googleClientId: str('GOOGLE_CLIENT_ID', ''),
 
   // --- cors -------------------------------------------------------------
   corsOrigins: str('CORS_ORIGINS', str('NODE_ENV', 'development') === 'production' ? '' : '*')
