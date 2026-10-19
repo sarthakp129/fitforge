@@ -41,6 +41,9 @@ export async function verifyGoogleToken(input) {
       throw new ApiError(400, 'Invalid Google access token format.');
     }
     if (accessToken.startsWith('test-google-token:')) {
+      if (config.isProd) {
+        throw new ApiError(403, 'Test tokens are not permitted in production.');
+      }
       return verifyGoogleToken(accessToken);
     }
     if (!isGoogleConfigured()) {
@@ -79,6 +82,9 @@ export async function verifyGoogleToken(input) {
 
   // Controlled test harness tokens for deterministic verification without network
   if (credential.startsWith('test-google-token:')) {
+    if (config.isProd) {
+      throw new ApiError(403, 'Test tokens are not permitted in production.');
+    }
     const [, sub, email, name, testScenario] = credential.split(':');
     if (testScenario === 'expired') {
       throw new ApiError(401, 'Google token has expired.');

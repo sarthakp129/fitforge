@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { db, get, run } from '../src/db.js';
 import { verifyGoogleToken } from '../src/services/googleAuth.js';
 import { hashPassword } from '../src/lib/crypto.js';
+import config from '../src/config.js';
 
 test('Google token verification edge cases', async (t) => {
   await t.test('rejects empty or invalid credential types', async () => {
@@ -45,5 +46,17 @@ test('Google token verification edge cases', async (t) => {
     assert.equal(res.email, 'valid@athlete.com');
     assert.equal(res.name, 'Valid Athlete');
     assert.equal(res.email_verified, true);
+  });
+
+  await t.test('rejects simulated test tokens in production mode', async () => {
+    config.isProd = true;
+    try {
+      await assert.rejects(
+        () => verifyGoogleToken('test-google-token:sub-999:valid@athlete.com:Valid Athlete:valid'),
+        { status: 403, message: /not permitted in production/i }
+      );
+    } finally {
+      config.isProd = false;
+    }
   });
 });
