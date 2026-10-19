@@ -4,7 +4,7 @@
 
 - [x] Phase 0 — baseline audit and safe checkpoint
 - [x] Phase 1 — security and data integrity
-- [ ] Phase 2 — authentication and account management
+- [x] Phase 2 — authentication and account management
 - [ ] Phase 3 — food and exercise discovery
 - [ ] Phase 4 — faster logging
 - [ ] Phase 5 — personalization and controlled AI
@@ -54,7 +54,30 @@
 - `backend/scripts/seed.js`, `backend/test/smoke.test.js`
 - `frontend/src/{lib/api,store/useStore}.js`, `frontend/nginx.conf`, `docker-compose.yml`
 
+## Phase 2 completed
+
+- Integrated Google Identity Services (GIS) with server-side Google ID token cryptographic verification (`google-auth-library`).
+- Added `/api/auth/google` supporting secure passwordless sign-in and account registration.
+- Enforced strict account linking security: prevents silent identity takeover by returning 409 when a matching email already has local password credentials, requiring manual linking in Settings.
+- Added `/api/auth/google/link` and `/api/auth/google/unlink` for secure account management, preventing unlinking if no local password exists.
+- Expanded profile schema with `timezone` (IANA string), `units` (metric/imperial), and `favorite_exercises` (persisted JSON array).
+- Added `saved_meals` table and CRUD endpoints (`GET/POST/DELETE /api/profile/saved-meals`) for reusable meal presets.
+- Created reusable neumorphic `<GoogleSignIn>` component on the frontend with graceful fallback when Google OAuth credentials are not configured.
+- Upgraded `Settings.jsx` with athlete name editing, Google account connection status, regional units, timezone auto-detection, favorite exercise chips, and saved meal preset manager.
+- Added unit tests in `backend/test/googleAuth.test.js` covering expired tokens, invalid signatures, audience mismatch, unverified emails, and valid claims.
+- Extended smoke test suite with Google sign-in flows, linking/unlinking, profile preferences, and saved meal lifecycles (87 tests passing total).
+
+## Files changed in Phase 2
+
+- `backend/src/{config,db}.js`
+- `backend/src/middleware/auth.js`
+- `backend/src/routes/{auth,profile}.js`
+- `backend/src/services/googleAuth.js`
+- `backend/test/{googleAuth,smoke}.test.js`
+- `frontend/src/{lib/api,store/useStore}.js`
+- `frontend/src/components/{GoogleSignIn,Landing,Settings}.jsx`
+
 ## Next phase
 
-Phase 2: Google identity integration and broader profile/account preferences. This needs Google OAuth client configuration to be live-tested; email/password operation remains available without it.
+Phase 3: food and exercise discovery (expandable nutrition and workout catalogues with local caching and fallback).
 

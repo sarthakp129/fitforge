@@ -148,6 +148,91 @@ async function main() {
     assert.equal(r.status, 401);
   });
 
+  await test('GET /api/auth/config reports auth capabilities', async () => {
+    const r = await call('GET', '/api/auth/config', null, { noAuth: true });
+    assert.equal(r.status, 200);
+    assert.equal(typeof r.body.google_configured, 'boolean');
+    assert.equal(r.body.password_min_length, 12);
+  });
+
+  await test('POST /api/auth/google registers a new user with Google identity', async () => {
+    const r = await call('POST', '/api/auth/google', {
+      credential: 'test-google-token:sub-google-1:newathlete@fitforge.test:Google Athlete:valid',
+    }, { noAuth: true });
+    assert.equal(r.status, 201, JSON.stringify(r.body));
+    assert.equal(r.body.user.email, 'newathlete@fitforge.test');
+    assert.equal(r.body.user.google_linked, true);
+    assert.equal(r.body.is_new, true);
+  });
+
+  await test('POST /api/auth/google logs in returning Google user', async () => {
+    const r = await call('POST', '/api/auth/google', {
+      credential: 'test-google-token:sub-google-1:newathlete@fitforge.test:Google Athlete:valid',
+    }, { noAuth: true });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.user.email, 'newathlete@fitforge.test');
+    assert.equal(r.body.is_new, false);
+  });
+
+  await test('POST /api/auth/google rejects silent account linking when password account exists', async () => {
+    const r = await call('POST', '/api/auth/google', {
+      credential: 'test-google-token:sub-diff-2:athlete@fitforge.test:Attacker Name:valid',
+    }, { noAuth: true });
+    assert.equal(r.status, 409);
+    assert.equal(r.body.requires_link, true);
+  });
+
+  await test('POST /api/auth/google/link links Google identity to authenticated account', async () => {
+    const r = await call('POST', '/api/auth/google/link', {
+      credential: 'test-google-token:sub-athlete-linked:athlete@fitforge.test:Test Athlete:valid',
+    });
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, true);
+    const me = await call('GET', '/api/auth/me');
+    assert.equal(me.body.user.google_linked, true);
+  });
+
+  await test('POST /api/auth/google/unlink disconnects Google identity', async () => {
+    const r = await call('POST', '/api/auth/google/unlink', {});
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, true);
+    const me = await call('GET', '/api/auth/me');
+    assert.equal(me.body.user.google_linked, false);
+  });
+
+  await test('PUT /api/profile persists timezone, units, and favorite exercises', async () => {
+    const r = await call('PUT', '/api/profile', {
+      timezone: 'Asia/Kolkata',
+      units: 'metric',
+      favorite_exercises: ['bench_press', 'barbell_squat'],
+    });
+    assert.equal(r.status, 200);
+    const p = await call('GET', '/api/profile');
+    assert.equal(p.body.profile.timezone, 'Asia/Kolkata');
+    assert.equal(p.body.profile.units, 'metric');
+    assert.deepEqual(p.body.profile.favorite_exercises, ['bench_press', 'barbell_squat']);
+  });
+
+  await test('saved meals lifecycle: create, list, and delete', async () => {
+    const created = await call('POST', '/api/profile/saved-meals', {
+      name: 'Oats & Whey',
+      calories: 450,
+      protein_g: 40,
+      carbs_g: 50,
+      fat_g: 8,
+      items: [{ food_name: 'Rolled Oats', grams: 80 }, { food_name: 'Whey Isolate', grams: 35 }],
+    });
+    assert.equal(created.status, 201);
+    assert.equal(created.body.name, 'Oats & Whey');
+
+    const list = await call('GET', '/api/profile/saved-meals');
+    assert.equal(list.status, 200);
+    assert.ok(list.body.some((m) => m.name === 'Oats & Whey'));
+
+    const del = await call('DELETE', `/api/profile/saved-meals/${created.body.id}`);
+    assert.equal(del.status, 200);
+  });
+
   await test('POST /api/profile/onboard validates and persists', async () => {
     const r = await call('POST', '/api/profile/onboard', {
       sex: 'male', birth_date: '1994-05-11', height_cm: 181, weight_kg: 82.4,

@@ -4,6 +4,7 @@ import api from '../lib/api.js';
 import useTilt from '../hooks/useTilt.js';
 import { Button, Card, Chip, Icon, Reveal, Bar, SingleRing, Modal, Empty } from './ui.jsx';
 import { PasswordInput } from './Controls.jsx';
+import GoogleSignIn from './GoogleSignIn.jsx';
 import { bmr, tdee, calorieTarget, macroTargets, bmi, weeklyRate } from '../lib/calc.js';
 import { nf, titleCase } from '../lib/format.js';
 
@@ -197,7 +198,7 @@ export default function Landing() {
     const e = {};
     if (mode === 'register' && form.name.trim().length < 2) e.name = 'What should we call you?';
     if (!EMAIL_RE.test(form.email.trim())) e.email = 'That doesn’t look like an email address.';
-    if (mode === 'register' && form.password.length < 6) e.password = 'At least 6 characters.';
+    if (mode === 'register' && form.password.length < 12) e.password = 'At least 12 characters.';
     if (mode === 'login' && !form.password) e.password = 'Enter your password.';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -1001,6 +1002,19 @@ export default function Landing() {
                 <Button type="submit" variant="ember" size="lg" loading={busy} block>
                   {mode === 'login' ? 'Sign in' : 'Create account'} <Icon name="arrowRight" size={17} />
                 </Button>
+
+                <div className="row gap-10" style={{ alignItems: 'center', margin: '4px 0' }}>
+                  <div className="divider" style={{ flex: 1 }} />
+                  <span className="tiny muted uppercase" style={{ letterSpacing: '0.08em', fontWeight: 600 }}>or</span>
+                  <div className="divider" style={{ flex: 1 }} />
+                </div>
+
+                <GoogleSignIn
+                  text={mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
+                  disabled={busy}
+                  onError={(err) => setApiError(err.message)}
+                />
+
                 {demo && mode === 'login' && (
                   <Button type="button" variant="soft" size="lg" onClick={demoLogin} disabled={busy} block>
                     <Icon name="play" size={15} /> Try the demo account
