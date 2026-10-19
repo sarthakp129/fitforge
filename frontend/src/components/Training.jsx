@@ -175,6 +175,185 @@ function SubstituteModal({ open, exercise, onClose, onSelect }) {
   );
 }
 
+/* ======================= ai exercise coaching modal ======================= */
+
+function ExerciseGuideModal({ open, exercise, onClose, onAddWarmupSets }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const [activeTab, setActiveTab] = useState('cues');
+  const { handleError, toast } = useStore();
+
+  useEffect(() => {
+    if (!open || !exercise) {
+      setData(null);
+      return;
+    }
+    setLoading(true);
+    const exId = exercise.exercise_id || exercise.id || exercise.name;
+    const workingWeight = exercise.last?.weight_kg || exercise.weight_kg || (exercise.sets?.[0]?.weight_kg) || 60;
+    const reps = exercise.target_reps || exercise.reps || (exercise.sets?.[0]?.reps) || 8;
+    api.ai.exerciseGuide(exId, { workingWeight, reps })
+      .then((res) => {
+        setData(res);
+      })
+      .catch((e) => handleError(e, 'Could not fetch exercise coaching guide.'))
+      .finally(() => setLoading(false));
+  }, [open, exercise, handleError]);
+
+  const exName = exercise?.exercise_name || exercise?.name || 'Exercise';
+  const guide = data?.guide;
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`${exName} · AI Coaching Guide`}
+      subtitle={data?.source ? `Powered by ${data.source === 'groq-lpu' ? 'Groq LPU Biomechanics' : 'Deterministic Engine'}` : 'Biomechanical cues & warm-up progression'}
+      wide
+    >
+      <div className="stack gap-14">
+        {loading && (
+          <div className="stack gap-12">
+            <Skeleton h={38} r={10} />
+            <Skeleton h={160} r={14} />
+          </div>
+        )}
+
+        {guide && (
+          <>
+            <Segmented
+              value={activeTab}
+              onChange={setActiveTab}
+              options={[
+                { value: 'cues', label: 'Form & Cues' },
+                { value: 'warmup', label: 'Warm-up Sets' },
+                { value: 'mistakes', label: 'Faults & Fixes' },
+                { value: 'substitutes', label: 'Substitutes' },
+              ]}
+            />
+
+            {activeTab === 'cues' && (
+              <div className="stack gap-14">
+                <div className="stack gap-8">
+                  <div className="eyebrow" style={{ color: 'var(--teal)' }}>Setup & Positioning</div>
+                  <div className="stack gap-6">
+                    {(guide.setup_cues || []).map((cue, idx) => (
+                      <div key={idx} className="row gap-10 small" style={{ alignItems: 'flex-start' }}>
+                        <span className="mono strong tiny" style={{ background: 'var(--surface-2)', padding: '2px 7px', borderRadius: 6, minWidth: 24, textAlign: 'center' }}>
+                          {idx + 1}
+                        </span>
+                        <span className="flex-1 muted" style={{ lineHeight: 1.6 }}>{cue}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="stack gap-8">
+                  <div className="eyebrow" style={{ color: 'var(--ember)' }}>Execution & Bar Path</div>
+                  <div className="stack gap-6">
+                    {(guide.execution_cues || []).map((cue, idx) => (
+                      <div key={idx} className="row gap-10 small" style={{ alignItems: 'flex-start' }}>
+                        <Icon name="spark" size={13} style={{ color: 'var(--ember)', marginTop: 3 }} />
+                        <span className="flex-1 muted" style={{ lineHeight: 1.6 }}>{cue}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'warmup' && (
+              <div className="stack gap-12">
+                <div className="row-between" style={{ alignItems: 'center' }}>
+                  <span className="eyebrow">Calculated Pyramid Warm-up</span>
+                  <span className="tiny muted">Prepares joints & neuromuscular pathways without metabolic fatigue</span>
+                </div>
+
+                <div className="stack gap-8">
+                  {(guide.warmup_protocol || guide.warmup_sets || []).map((w, idx) => (
+                    <div key={idx} className="row-between" style={{ padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 10 }}>
+                      <div className="row gap-12" style={{ alignItems: 'center' }}>
+                        <span className="mono strong" style={{ fontSize: '0.95rem', color: 'var(--teal)' }}>Set {w.set || idx + 1}</span>
+                        <span className="mono strong">{w.weight_kg ? `${w.weight_kg} kg` : w.weight || 'Moderate load'} × {w.reps || 5} reps</span>
+                      </div>
+                      <span className="tiny muted" style={{ maxWidth: '45ch', textAlign: 'right' }}>{w.purpose || w.note || 'Warm-up primer'}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {guide.safety_cue && (
+                  <div className="chip chip-warn small" style={{ marginTop: 4 }}>
+                    <Icon name="bolt" size={13} style={{ marginRight: 4 }} />
+                    {guide.safety_cue}
+                  </div>
+                )}
+
+                {onAddWarmupSets && (guide.warmup_protocol || guide.warmup_sets)?.length > 0 && (
+                  <Button
+                    variant="ember"
+                    size="sm"
+                    onClick={() => {
+                      const sets = (guide.warmup_protocol || guide.warmup_sets || []).map((w, idx) => {
+                        const parsedWeight = w.weight_kg || parseFloat(String(w.weight || '').replace(/[^0-9.]/g, '')) || 20;
+                        const parsedReps = parseInt(String(w.reps || '').replace(/[^0-9]/g, ''), 10) || 5;
+                        return { set_number: idx + 1, weight_kg: parsedWeight, reps: parsedReps, is_warmup: true };
+                      });
+                      onAddWarmupSets(sets);
+                      toast(`Added ${sets.length} warm-up sets for ${exName}.`, 'ok');
+                      onClose();
+                    }}
+                    style={{ alignSelf: 'flex-start', marginTop: 4 }}
+                  >
+                    <Icon name="plus" size={13} /> Add warm-up sets to session
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'mistakes' && (
+              <div className="stack gap-8">
+                <span className="eyebrow" style={{ color: 'var(--ember)' }}>Common Faults & Correction</span>
+                <div className="stack gap-8">
+                  {(guide.common_mistakes || []).map((m, idx) => (
+                    <div key={idx} className="row gap-10 small" style={{ padding: '10px 12px', background: 'var(--surface-2)', borderRadius: 10 }}>
+                      <Icon name="bolt" size={14} style={{ color: 'var(--amber)', marginTop: 2 }} />
+                      <span className="flex-1 muted" style={{ lineHeight: 1.55 }}>{m}</span>
+                    </div>
+                  ))}
+                </div>
+                {guide.safety_cue && (
+                  <div className="chip chip-warn small" style={{ marginTop: 6 }}>
+                    <Icon name="bolt" size={12} style={{ marginRight: 4 }} />
+                    {guide.safety_cue}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'substitutes' && (
+              <div className="stack gap-8">
+                <span className="eyebrow">Biomechanical Equivalents</span>
+                <div className="stack gap-8">
+                  {(guide.smart_substitutes || guide.substitutions || []).map((sub, idx) => {
+                    const subName = typeof sub === 'string' ? sub : sub.name;
+                    const subReason = typeof sub === 'string' ? 'Direct biomechanical alternative targeting identical motor recruitment and prime movers.' : (sub.reason || sub.notes);
+                    return (
+                      <div key={idx} className="stack gap-4" style={{ padding: '10px 14px', background: 'var(--surface-2)', borderRadius: 10 }}>
+                        <div className="strong small" style={{ color: 'var(--teal)' }}>{subName}</div>
+                        <div className="tiny muted" style={{ lineHeight: 1.55 }}>{subReason}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
 /* ============================ session logger ============================== */
 
 function SessionLogger({ session, history = [], onClose, onSaved }) {
@@ -186,6 +365,7 @@ function SessionLogger({ session, history = [], onClose, onSaved }) {
   const [notes, setNotes] = useState('');
   const [rpe, setRpe] = useState('');
   const [subRowIdx, setSubRowIdx] = useState(null);
+  const [guideRowIdx, setGuideRowIdx] = useState(null);
   const [rows, setRows] = useState(() =>
     (session?.exercises || []).map((ex) => {
       const last = session?.last_performance?.[ex.exercise_id] || historyMap[ex.exercise_id] || null;
@@ -343,6 +523,7 @@ function SessionLogger({ session, history = [], onClose, onSaved }) {
               </div>
             </div>
             <div className="row gap-6">
+              <Button variant="soft" size="sm" onClick={() => setGuideRowIdx(ri)} aria-label="AI coaching cues and warmup" title="AI coaching cues, warmup pyramid, and biomechanics"><Icon name="spark" size={13} /> AI Guide</Button>
               <Button variant="ghost" size="sm" onClick={() => setSubRowIdx(ri)} aria-label="Swap exercise" title="Find biomechanical substitutes"><Icon name="refresh" size={13} /> Swap</Button>
               <Field label="" className="gap-4">
                 <Input className="input-sm input-num" type="number" min="0" max="600" step="5" value={row.rest_s}
@@ -414,6 +595,26 @@ function SessionLogger({ session, history = [], onClose, onSaved }) {
         exercise={subRowIdx !== null ? rows[subRowIdx] : null}
         onClose={() => setSubRowIdx(null)}
         onSelect={swapRowExercise}
+      />
+      <ExerciseGuideModal
+        open={guideRowIdx !== null}
+        exercise={guideRowIdx !== null ? rows[guideRowIdx] : null}
+        onClose={() => setGuideRowIdx(null)}
+        onAddWarmupSets={(warmups) => {
+          if (guideRowIdx === null) return;
+          setRows((rs) => rs.map((r, i) => {
+            if (i !== guideRowIdx) return r;
+            const newSets = warmups.map((w, idx) => ({
+              set_number: idx + 1,
+              weight_kg: w.weight_kg,
+              reps: w.reps,
+              rpe: '',
+              is_warmup: true,
+              done: false,
+            }));
+            return { ...r, sets: [...newSets, ...r.sets] };
+          }));
+        }}
       />
     </div>
   );
@@ -677,6 +878,7 @@ export default function Training() {
   const [activeDay, setActiveDay] = useState(0);
   const [session, setSession] = useState(pendingSession);
   const [planSwapTarget, setPlanSwapTarget] = useState(null);
+  const [planGuideExercise, setPlanGuideExercise] = useState(null);
   const abortRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -896,6 +1098,14 @@ export default function Training() {
                             </div>
                             <div className="row gap-6">
                               <Button
+                                variant="soft"
+                                size="sm"
+                                onClick={() => setPlanGuideExercise(ex)}
+                                title="AI coaching cues, biomechanics and warmup pyramid"
+                              >
+                                <Icon name="spark" size={13} /> AI Guide
+                              </Button>
+                              <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setPlanSwapTarget({ exerciseIndex: i, exercise: ex })}
@@ -1054,6 +1264,11 @@ export default function Training() {
         exercise={planSwapTarget?.exercise}
         onClose={() => setPlanSwapTarget(null)}
         onSelect={swapPlanExercise}
+      />
+      <ExerciseGuideModal
+        open={Boolean(planGuideExercise)}
+        exercise={planGuideExercise}
+        onClose={() => setPlanGuideExercise(null)}
       />
     </div>
   );

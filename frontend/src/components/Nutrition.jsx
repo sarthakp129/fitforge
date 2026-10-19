@@ -49,7 +49,10 @@ export default function Nutrition() {
   const [foods, setFoods] = useState([]);
   const [picked, setPicked] = useState(null);
   const [grams, setGrams] = useState(100);
-  const [manual, setManual] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const [planCuisine, setPlanCuisine] = useState('north_indian');
+  const [estimating, setEstimating] = useState(false);
+  const [estimateBadge, setEstimateBadge] = useState(null);
+  const [manual, setManual] = useState({ food_name: '', grams: 150, calories: '', protein_g: '', carbs_g: '', fat_g: '' });
   const [voiceItems, setVoiceItems] = useState(null);
   const [voiceText, setVoiceText] = useState('');
   const [micState, setMicState] = useState({ recording: false, working: false });
@@ -120,9 +123,43 @@ export default function Nutrition() {
 
   const openAdd = (meal) => {
     setAddMeal(meal); setPicked(null); setGrams(100); setQ('');
-    setManual({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setManual({ food_name: '', grams: 150, calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setEstimateBadge(null);
     setModalTab('library');
     setAddOpen(true);
+  };
+
+  const estimateManualMacros = async () => {
+    const name = manual.food_name.trim();
+    if (!name) {
+      toast('Enter a food name first (e.g. Paneer Butter Masala, Dal Makhani).', 'warn');
+      return;
+    }
+    const g = Number(manual.grams) || 150;
+    setEstimating(true);
+    try {
+      const res = await api.nutrition.estimate(name, g);
+      if (res?.estimate) {
+        const est = res.estimate;
+        setManual((prev) => ({
+          ...prev,
+          calories: est.calories,
+          protein_g: est.protein_g,
+          carbs_g: est.carbs_g,
+          fat_g: est.fat_g,
+        }));
+        setEstimateBadge({
+          confidence: est.confidence || 'high',
+          source: res.source === 'groq-lpu' ? 'AI Estimated' : res.source === 'local-foods-db' ? 'Verified Database' : 'Heuristic Estimate',
+          notes: est.notes || '',
+        });
+        toast(`Estimated: ${est.calories} kcal, ${est.protein_g}g P for ${g}g ${name}.`, 'ok', 3000);
+      }
+    } catch (err) {
+      handleError(err, 'Failed to fetch AI macro estimate.');
+    } finally {
+      setEstimating(false);
+    }
   };
 
   const saveCustomFood = async () => {
@@ -190,15 +227,49 @@ export default function Nutrition() {
   }, [foods, cuisineFilter]);
 
   const addEntry = async () => {
-    const payload = picked
-      ? { date, meal_type: addMeal, food_name: picked.name, grams: Number(grams) || picked.serving_g }
-      : {
-          date, meal_type: addMeal, food_name: manual.food_name.trim(),
-          calories: Number(manual.calories) || 0, protein_g: Number(manual.protein_g) || 0,
-          carbs_g: Number(manual.carbs_g) || 0, fat_g: Number(manual.fat_g) || 0,
-        };
-    if (!payload.food_name) return toast('Pick a food or type a name.', 'warn');
-    if (!picked && !(payload.calories > 0)) return toast('Add at least the calories for a custom food.', 'warn');
+    let payload;
+    if (picked) {
+      payload = { date, meal_type: addMeal, food_name: picked.name, grams: Number(grams) || picked.serving_g };
+    } else {
+      const name = manual.food_name.trim();
+      if (!name) return toast('Pick a food or type a name.', 'warn');
+      const g = Number(manual.grams) || 100;
+      let cal = Number(manual.calories);
+      let p = Number(manual.protein_g) || 0;
+      let c = Number(manual.carbs_g) || 0;
+      let f = Number(manual.fat_g) || 0;
+
+      // If user typed name + grams but didn't manually enter calories, auto-estimate before logging
+      if (!cal || cal <= 0) {
+        setEstimating(true);
+        try {
+          const res = await api.nutrition.estimate(name, g);
+          if (res?.estimate) {
+            cal = res.estimate.calories;
+            p = res.estimate.protein_g;
+            c = res.estimate.carbs_g;
+            f = res.estimate.fat_g;
+          }
+        } catch {
+          // Allow server auto-estimation fallback
+        } finally {
+          setEstimating(false);
+        }
+      }
+
+      payload = {
+        date,
+        meal_type: addMeal,
+        food_name: name,
+        grams: g,
+        calories: cal || undefined,
+        protein_g: p,
+        carbs_g: c,
+        fat_g: f,
+        auto_estimate: (!cal || cal <= 0) ? true : undefined,
+      };
+    }
+
     try {
       await api.nutrition.log(payload);
       setAddOpen(false);
@@ -217,7 +288,7 @@ export default function Nutrition() {
     setGenerating(true); setGenState(null);
     try {
       const { streamPost } = await import('../lib/api.js');
-      const done = await streamPost('/api/ai/plans/nutrition', { force }, ({ event, data }) => {
+      const done = await streamPost('/api/ai/plans/nutrition', { force, cuisine: planCuisine, mode: 'full' }, ({ event, data }) => {
         if (event === 'progress') setGenState(data);
         if (event === 'error') setGenState({ phase: 'degraded', reason: data.message });
       });
@@ -228,7 +299,7 @@ export default function Nutrition() {
       await load();
       await refreshAiStatus();
       setTab('plan');
-      toast('Nutrition plan ready.', 'ok');
+      toast(`${planCuisine === 'north_indian' ? 'North Indian' : planCuisine === 'south_indian' ? 'South Indian' : 'Personalized'} nutrition plan ready.`, 'ok');
     } catch (err) {
       handleError(err, 'Generation failed.');
       await load();
@@ -546,9 +617,33 @@ export default function Nutrition() {
                   subtitle={plan ? `${plan.meals?.length} meals · ${nf(plan.plan_totals?.calories)} kcal planned` : 'Meals in grams, matched to your targets and diet.'}
                   right={planMeta ? <Chip tone={sourceChip(planMeta.source).cls}>{sourceChip(planMeta.source).label}</Chip> : undefined}
                 />
-                <div className="row gap-10" style={{ flexWrap: 'wrap' }}>
+                <div className="stack gap-8">
+                  <div className="row-between" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+                    <span className="eyebrow">Focus Cuisine</span>
+                    <span className="tiny muted">Generates authentic meal rotation with local staples</span>
+                  </div>
+                  <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
+                    {[
+                      { id: 'north_indian', label: 'North Indian (Focused)', icon: 'spark' },
+                      { id: 'south_indian', label: 'South Indian', icon: 'leaf' },
+                      { id: 'global', label: 'Global / Balanced', icon: 'target' },
+                    ].map((c) => (
+                      <Chip
+                        key={c.id}
+                        onClick={() => setPlanCuisine(c.id)}
+                        tone={planCuisine === c.id ? 'ember' : 'ghost'}
+                        style={{ cursor: 'pointer', padding: '6px 12px', fontWeight: planCuisine === c.id ? 700 : 500 }}
+                      >
+                        <Icon name={c.icon} size={13} style={{ marginRight: 5 }} />
+                        {c.label}
+                      </Chip>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="row gap-10" style={{ flexWrap: 'wrap', marginTop: 4 }}>
                   <Button variant="ember" onClick={() => generate(false)} disabled={generating} loading={generating}>
-                    <Icon name="spark" size={16} /> {plan ? 'Regenerate' : 'Generate meal plan'}
+                    <Icon name="spark" size={16} /> {plan ? 'Regenerate plan' : 'Generate meal plan'}
                   </Button>
                   {plan && <Button variant="ghost" onClick={() => generate(true)} disabled={generating}><Icon name="refresh" size={15} /> Fresh</Button>}
                 </div>
@@ -571,9 +666,9 @@ export default function Nutrition() {
                   <div className="grid grid-4">
                     {[
                       ['Calories', nf(plan.targets.calories), 'kcal', 'ember'],
-                      ['Protein', nf(plan.targets.protein_g), `g · ${plan.targets.protein_pct}%`, 'teal'],
-                      ['Carbs', nf(plan.targets.carbs_g), `g · ${plan.targets.carbs_pct}%`, 'violet'],
-                      ['Fat', nf(plan.targets.fat_g), `g · ${plan.targets.fat_pct}%`, 'amber'],
+                      ['Protein', nf(plan.targets.protein_g), `g · ${plan.targets.protein_pct || Math.round(((plan.targets.protein_g * 4) / Math.max(1, plan.targets.calories)) * 100)}%`, 'teal'],
+                      ['Carbs', nf(plan.targets.carbs_g), `g · ${plan.targets.carbs_pct || Math.round(((plan.targets.carbs_g * 4) / Math.max(1, plan.targets.calories)) * 100)}%`, 'violet'],
+                      ['Fat', nf(plan.targets.fat_g), `g · ${plan.targets.fat_pct || Math.round(((plan.targets.fat_g * 9) / Math.max(1, plan.targets.calories)) * 100)}%`, 'amber'],
                     ].map(([l, v, u, tone]) => (
                       <Card key={l} className="stack gap-4" hover>
                         <span className="eyebrow">{l}</span>
@@ -962,18 +1057,70 @@ export default function Nutrition() {
                     )}
                   </>
                 ) : (
-                  <>
-                    <div className="chip chip-teal" style={{ alignSelf: 'flex-start' }}>
-                      <Icon name="bolt" size={12} /> Totals for THIS portion — not per 100 g
+                  <div className="stack gap-12">
+                    <div className="row-between" style={{ alignItems: 'center' }}>
+                      <div className="chip chip-teal tiny">
+                        <Icon name="spark" size={12} /> AI Macro Estimator
+                      </div>
+                      <span className="tiny muted">Input food & grams — AI calculates macros</span>
                     </div>
-                    <Field label="Food name"><Input value={manual.food_name} onChange={(e) => setManual({ ...manual, food_name: e.target.value })} placeholder="e.g. Homemade biryani" /></Field>
-                    <div className="grid grid-2">
-                      <Field label="Calories" hint="as eaten"><Input className="input-num" type="number" min="0" value={manual.calories} onChange={(e) => setManual({ ...manual, calories: e.target.value })} /></Field>
-                      <Field label="Protein (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.protein_g} onChange={(e) => setManual({ ...manual, protein_g: e.target.value })} /></Field>
-                      <Field label="Carbs (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.carbs_g} onChange={(e) => setManual({ ...manual, carbs_g: e.target.value })} /></Field>
-                      <Field label="Fat (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.fat_g} onChange={(e) => setManual({ ...manual, fat_g: e.target.value })} /></Field>
+                    <Field label="Food name" hint="e.g. Paneer Bhurji, Aloo Paratha, Kadhi Pakora">
+                      <Input
+                        value={manual.food_name}
+                        onChange={(e) => setManual({ ...manual, food_name: e.target.value })}
+                        placeholder="e.g. Paneer Bhurji, Chicken Curry, Matar Paneer"
+                      />
+                    </Field>
+                    <div className="row gap-8" style={{ alignItems: 'flex-end' }}>
+                      <Field label="Portion (grams)" hint="cooked / eaten" className="flex-1">
+                        <Input
+                          className="input-num"
+                          type="number"
+                          min="10"
+                          max="2000"
+                          step="10"
+                          value={manual.grams}
+                          onChange={(e) => setManual({ ...manual, grams: e.target.value })}
+                        />
+                      </Field>
+                      <Button
+                        type="button"
+                        variant="soft"
+                        onClick={estimateManualMacros}
+                        disabled={estimating || !manual.food_name.trim()}
+                        loading={estimating}
+                        title="Fetch nutritional values using AI"
+                        style={{ marginBottom: 2 }}
+                      >
+                        <Icon name="spark" size={14} /> Fetch with AI
+                      </Button>
                     </div>
-                  </>
+
+                    {estimateBadge && (
+                      <div className="row-between" style={{ padding: '8px 12px', background: 'var(--surface-2)', borderRadius: 10 }}>
+                        <div className="row gap-6">
+                          <Chip tone="ok" className="tiny"><Icon name="check" size={11} /> {estimateBadge.source}</Chip>
+                          {estimateBadge.notes && <span className="tiny muted">{estimateBadge.notes}</span>}
+                        </div>
+                        <span className="tiny mono muted">Confidence: {estimateBadge.confidence}</span>
+                      </div>
+                    )}
+
+                    <div className="grid grid-4">
+                      <Field label="Calories" hint="kcal">
+                        <Input className="input-num" type="number" min="0" value={manual.calories} onChange={(e) => setManual({ ...manual, calories: e.target.value })} placeholder="Auto" />
+                      </Field>
+                      <Field label="Protein" hint="g">
+                        <Input className="input-num" type="number" min="0" step="0.5" value={manual.protein_g} onChange={(e) => setManual({ ...manual, protein_g: e.target.value })} placeholder="Auto" />
+                      </Field>
+                      <Field label="Carbs" hint="g">
+                        <Input className="input-num" type="number" min="0" step="0.5" value={manual.carbs_g} onChange={(e) => setManual({ ...manual, carbs_g: e.target.value })} placeholder="Auto" />
+                      </Field>
+                      <Field label="Fat" hint="g">
+                        <Input className="input-num" type="number" min="0" step="0.5" value={manual.fat_g} onChange={(e) => setManual({ ...manual, fat_g: e.target.value })} placeholder="Auto" />
+                      </Field>
+                    </div>
+                  </div>
                 )}
                 <Button variant="ember" block onClick={addEntry}><Icon name="check" size={15} /> Log it</Button>
               </div>

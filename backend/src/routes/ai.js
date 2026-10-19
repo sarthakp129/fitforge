@@ -5,7 +5,7 @@ import { ApiError } from '../middleware/errors.js';
 import config from '../config.js';
 import { aiStatus, listModels, GroqError } from '../services/groqClient.js';
 import { complete, transcribe, synthesize } from '../services/groqClient.js';
-import { generateTrainingPlan, generateNutritionPlan, coachChat, weeklyInsight, persistPlan } from '../services/aiService.js';
+import { generateTrainingPlan, generateNutritionPlan, coachChat, weeklyInsight, persistPlan, exerciseCoachingGuide } from '../services/aiService.js';
 import { cacheStats, cachePurge } from '../services/aiCache.js';
 import tokenBudget from '../services/tokenBudget.js';
 import { ageFrom } from '../services/nutrition.js';
@@ -169,8 +169,12 @@ router.post('/plans/nutrition', auth, aiCooldown(config.aiCooldownSeconds), asyn
   if (!profile.weight_kg) throw new ApiError(412, 'Add your bodyweight before generating a nutrition plan.');
   const streaming = req.query.stream === '1';
   const send = streaming ? sse(req, res) : null;
+  const cuisine = String(req.body?.cuisine || req.query?.cuisine || 'north_indian').trim();
+  const mode = String(req.body?.mode || req.query?.mode || 'full').trim();
   try {
     const plan = await generateNutritionPlan(req.user.id, profile, {
+      cuisine,
+      mode,
       force: Boolean(req.body?.force),
       onProgress: send ? (p) => send('progress', p) : undefined,
     });
@@ -187,6 +191,20 @@ router.post('/plans/nutrition', auth, aiCooldown(config.aiCooldownSeconds), asyn
       return res.status(err.status || 502).json({ error: err.code || 'ai_error', message: err.message });
     }
     throw err;
+  }
+});
+
+router.post('/exercise/guide', auth, async (req, res, next) => {
+  try {
+    const { exercise_id, weight_kg, reps } = req.body || {};
+    if (!exercise_id) throw new ApiError(400, 'exercise_id is required.');
+    const profile = getProfile(req.user.id);
+    const guide = await exerciseCoachingGuide(exercise_id, profile, {
+      weight_kg, reps, userId: req.user.id,
+    });
+    res.json({ guide });
+  } catch (err) {
+    next(err);
   }
 });
 

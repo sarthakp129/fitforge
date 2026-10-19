@@ -304,6 +304,14 @@ async function main() {
     assert.equal(del.status, 200);
   });
 
+  await test('POST /api/ai/exercise/guide returns cues and warm-up protocol', async () => {
+    const guide = await call('POST', '/api/ai/exercise/guide', { exercise_id: 'bench_press', weight_kg: 80, reps: '8' });
+    assert.equal(guide.status, 200);
+    assert.ok(guide.body.guide.setup_cues.length > 0);
+    assert.ok(guide.body.guide.execution_cues.length > 0);
+    assert.ok(guide.body.guide.warmup_protocol.length > 0);
+  });
+
   let planId = null;
   await test('POST /api/ai/plans/training builds a complete 4-day plan', async () => {
     const r = await call('POST', '/api/ai/plans/training', { weeks: 4 });
@@ -551,6 +559,22 @@ async function main() {
   await test('unknown food without macros is a 400', async () => {
     const r = await call('POST', '/api/nutrition/log', { date: today, food_name: 'Mystery goo' });
     assert.equal(r.status, 400);
+  });
+
+  await test('POST /api/nutrition/estimate calculates realistic macros for food and grams', async () => {
+    const est = await call('POST', '/api/nutrition/estimate', { food_name: 'Paneer Bhurji', grams: 200 });
+    assert.equal(est.status, 200);
+    assert.ok(est.body.estimate.calories > 0, 'calories must be positive');
+    assert.ok(est.body.estimate.protein_g > 0, 'protein must be positive');
+    assert.equal(est.body.estimate.grams, 200);
+  });
+
+  await test('POST /api/nutrition/log auto-estimates macros when food and grams provided without macros', async () => {
+    const r = await call('POST', '/api/nutrition/log', { date: today, food_name: 'Aloo Paratha with Curd', grams: 180 });
+    assert.equal(r.status, 201);
+    assert.ok(r.body.entry.calories > 0, 'auto-estimated calories should be logged');
+    assert.ok(r.body.entry.protein_g > 0, 'auto-estimated protein should be logged');
+    assert.equal(r.body.entry.grams, 180);
   });
 
   let customFoodId = null;

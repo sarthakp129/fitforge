@@ -100,5 +100,17 @@
   {"name":"Aloo Gobhi (home-style)","category":"veg","kcal":78,"protein_g":2.2,"carbs_g":12,"fat_g":2.5,"serving_g":150,"tags":["vegetarian","vegan","north indian"]},
   {"name":"Baingan Bharta (roasted eggplant)","category":"veg","kcal":55,"protein_g":1.8,"carbs_g":7,"fat_g":2.2,"serving_g":150,"tags":["vegetarian","vegan","north indian","volume"]},
   {"name":"Rasam (tomato-lentil broth)","category":"veg","kcal":35,"protein_g":1.5,"carbs_g":6,"fat_g":0.6,"serving_g":200,"tags":["vegetarian","vegan","south indian","digestive"]},
-  {"name":"Avial (mixed vegetables in coconut gravy)","category":"veg","kcal":95,"protein_g":2.5,"carbs_g":9,"fat_g":5.5,"serving_g":160,"tags":["vegetarian","south indian"]}
+  {"name":"Avial (mixed vegetables in coconut gravy)","category":"veg","kcal":95,"protein_g":2.5,"carbs_g":9,"fat_g":5.5,"serving_g":160,"tags":["vegetarian","south indian"]},
+  {"name":"Paneer Bhurji (spiced scrambled paneer)","category":"protein","kcal":210,"protein_g":14,"carbs_g":4,"fat_g":15,"serving_g":150,"tags":["vegetarian","north indian","high protein","breakfast"]},
+  {"name":"Matar Paneer (home-style curry)","category":"protein","kcal":165,"protein_g":9.5,"carbs_g":11,"fat_g":9.5,"serving_g":200,"tags":["vegetarian","north indian","staple"]},
+  {"name":"Soya Chaap Curry (cooked)","category":"protein","kcal":185,"protein_g":18,"carbs_g":12,"fat_g":7,"serving_g":180,"tags":["vegetarian","vegan","north indian","high protein"]},
+  {"name":"Kadhi Pakora (yogurt-gram flour curry)","category":"protein","kcal":135,"protein_g":5.5,"carbs_g":14,"fat_g":6.5,"serving_g":200,"tags":["vegetarian","dairy","north indian","staple"]},
+  {"name":"Aloo Paratha (home-style lightly toasted)","category":"carb","kcal":220,"protein_g":4.8,"carbs_g":38,"fat_g":5.8,"serving_g":100,"tags":["vegetarian","north indian","breakfast"]},
+  {"name":"Methi Roti / Thepla","category":"carb","kcal":210,"protein_g":6.5,"carbs_g":36,"fat_g":4.2,"serving_g":70,"tags":["vegetarian","vegan","north indian","fibre"]},
+  {"name":"Poha (flattened rice with veggies & peanuts)","category":"carb","kcal":160,"protein_g":3.8,"carbs_g":28,"fat_g":4.2,"serving_g":150,"tags":["vegetarian","vegan","north indian","breakfast"]},
+  {"name":"Egg Curry (homestyle 2 eggs in spiced gravy)","category":"protein","kcal":170,"protein_g":14,"carbs_g":5,"fat_g":10.5,"serving_g":200,"tags":["egg","north indian","high protein"]},
+  {"name":"Chicken Tikka Masala (lean preparation)","category":"protein","kcal":165,"protein_g":25,"carbs_g":5,"fat_g":5.2,"serving_g":200,"tags":["high protein","north indian","lean"]},
+  {"name":"Roasted Makhana (spiced fox nuts)","category":"carb","kcal":350,"protein_g":9.5,"carbs_g":65,"fat_g":4,"serving_g":35,"tags":["vegetarian","vegan","north indian","snack","fibre"]},
+  {"name":"Cucumber Raita (whipped dahi & cucumber)","category":"dairy","kcal":55,"protein_g":3.2,"carbs_g":4.5,"fat_g":2.5,"serving_g":150,"tags":["vegetarian","dairy","north indian","hydration","probiotic"]},
+  {"name":"Gajar Matar Sabzi (carrots & peas stir-fry)","category":"veg","kcal":60,"protein_g":2.4,"carbs_g":10,"fat_g":1.2,"serving_g":150,"tags":["vegetarian","vegan","north indian","volume"]}
 ]

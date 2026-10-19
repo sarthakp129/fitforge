@@ -12,6 +12,7 @@ import {
   getUserCustomFoods,
 } from '../services/foodService.js';
 import { validDate, queryDate } from '../lib/validate.js';
+import { estimateFoodMacros } from '../services/aiService.js';
 
 const router = Router();
 
@@ -36,6 +37,19 @@ router.get('/foods', optionalAuth, async (req, res, next) => {
 
 router.use(auth);
 
+/* ------------------------------ estimation ------------------------------ */
+
+router.post('/estimate', async (req, res, next) => {
+  try {
+    const { food_name, grams } = req.body || {};
+    if (!food_name || !String(food_name).trim()) throw new ApiError(400, 'food_name is required.');
+    const estimate = await estimateFoodMacros(food_name, grams, { userId: req.user.id });
+    res.json({ estimate });
+  } catch (err) {
+    next(err);
+  }
+});
+
 /* --------------------------------- logging ------------------------------ */
 
 function macrosFromFood(food, grams) {
@@ -49,38 +63,56 @@ function macrosFromFood(food, grams) {
   };
 }
 
-router.post('/log', (req, res) => {
-  const b = req.body || {};
-  if (b.date !== undefined && !validDate(b.date)) throw new ApiError(400, 'date must be a real date in YYYY-MM-DD form.');
-  const date = validDate(b.date) ? b.date : today();
-  const meal = MEALS.includes(b.meal_type) ? b.meal_type : 'snack';
-  const name = String(b.food_name || '').trim().slice(0, 120);
-  if (!name) throw new ApiError(400, 'food_name is required.');
+router.post('/log', async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    if (b.date !== undefined && !validDate(b.date)) throw new ApiError(400, 'date must be a real date in YYYY-MM-DD form.');
+    const date = validDate(b.date) ? b.date : today();
+    const meal = MEALS.includes(b.meal_type) ? b.meal_type : 'snack';
+    const name = String(b.food_name || '').trim().slice(0, 120);
+    if (!name) throw new ApiError(400, 'food_name is required.');
 
-  const known = getFoodByIdOrName(name, req.user.id);
+    const known = getFoodByIdOrName(name, req.user.id);
 
-  let values;
-  if (b.calories != null && Number(b.calories) > 0) {
-    values = {
-      grams: clamp(Number(b.grams) || known?.serving_g || 100, 1, 5000),
-      calories: round(Number(b.calories), 1),
-      protein_g: round(Number(b.protein_g) || 0, 1),
-      carbs_g: round(Number(b.carbs_g) || 0, 1),
-      fat_g: round(Number(b.fat_g) || 0, 1),
-    };
-  } else if (known) {
-    values = macrosFromFood(known, b.grams ?? known.serving_g);
-  } else {
-    throw new ApiError(400, 'Provide calories/macros, or use a food from the database.');
+    let values;
+    let source = String(b.source || '').slice(0, 20);
+    if (b.calories != null && Number(b.calories) > 0) {
+      values = {
+        grams: clamp(Number(b.grams) || known?.serving_g || 100, 1, 5000),
+        calories: round(Number(b.calories), 1),
+        protein_g: round(Number(b.protein_g) || 0, 1),
+        carbs_g: round(Number(b.carbs_g) || 0, 1),
+        fat_g: round(Number(b.fat_g) || 0, 1),
+      };
+      if (!source) source = known ? 'database' : 'manual';
+    } else if (known) {
+      values = macrosFromFood(known, b.grams ?? known.serving_g);
+      if (!source) source = 'database';
+    } else if (b.grams != null || b.auto_estimate) {
+      // Auto-estimate arbitrary foods via AI when user enters food name and grams
+      const est = await estimateFoodMacros(name, b.grams || 100, { userId: req.user.id });
+      values = {
+        grams: est.grams,
+        calories: est.calories,
+        protein_g: est.protein_g,
+        carbs_g: est.carbs_g,
+        fat_g: est.fat_g,
+      };
+      source = est.source || 'ai_estimate';
+    } else {
+      throw new ApiError(400, 'Provide calories/macros, grams for AI estimation, or choose a food from the database.');
+    }
+
+    const { lastInsertRowid } = run(
+      `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      req.user.id, date, meal, name, values.grams, values.calories,
+      values.protein_g, values.carbs_g, values.fat_g, source
+    );
+    res.status(201).json({ entry: get('SELECT * FROM nutrition_logs WHERE id = ?', Number(lastInsertRowid)) });
+  } catch (err) {
+    next(err);
   }
-
-  const { lastInsertRowid } = run(
-    `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    req.user.id, date, meal, name, values.grams, values.calories,
-    values.protein_g, values.carbs_g, values.fat_g, String(b.source || (known ? 'database' : 'manual')).slice(0, 20)
-  );
-  res.status(201).json({ entry: get('SELECT * FROM nutrition_logs WHERE id = ?', Number(lastInsertRowid)) });
 });
 
 /** Log many entries at once (used by "apply this meal plan to today"). */

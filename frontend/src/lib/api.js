@@ -186,6 +186,7 @@ export const api = {
     customFoods: () => request('/api/nutrition/custom-foods'),
     createCustomFood: (payload) => request('/api/nutrition/custom-foods', { method: 'POST', body: payload }),
     deleteCustomFood: (id) => request(`/api/nutrition/custom-foods/${id}`, { method: 'DELETE' }),
+    estimate: (payload) => request('/api/nutrition/estimate', { method: 'POST', body: payload }),
     log: (payload) => request('/api/nutrition/log', { method: 'POST', body: payload }),
     logBatch: (payload) => request('/api/nutrition/log-batch', { method: 'POST', body: payload }),
     daily: (date) => request(`/api/nutrition/daily?date=${date}`),
@@ -217,6 +218,12 @@ export const api = {
     planNutrition: (payload) => request('/api/ai/plans/nutrition', { method: 'POST', body: payload }),
     streamTraining: (payload, onEvent, opts) => streamPost('/api/ai/plans/training', payload, onEvent, opts),
     streamNutrition: (payload, onEvent, opts) => streamPost('/api/ai/plans/nutrition', payload, onEvent, opts),
+    exerciseGuide: (idOrPayload, options = {}) => {
+      const body = typeof idOrPayload === 'string'
+        ? { exercise_id: idOrPayload, weight_kg: options.workingWeight || options.weight_kg, reps: options.reps }
+        : idOrPayload;
+      return request('/api/ai/exercise/guide', { method: 'POST', body });
+    },
     plans: (kind) => request(`/api/ai/plans${kind ? `?kind=${kind}` : ''}`),
     plan: (id) => request(`/api/ai/plans/${id}`),
     activePlan: (kind) => request(`/api/ai/plans/active/${kind}`),

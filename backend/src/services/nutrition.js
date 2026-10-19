@@ -77,6 +77,9 @@ export function macroTargets(profile) {
     protein_g,
     carbs_g,
     fat_g,
+    protein_pct: Math.round(((protein_g * 4) / Math.max(1, kcal)) * 100),
+    carbs_pct: Math.round(((carbs_g * 4) / Math.max(1, kcal)) * 100),
+    fat_pct: Math.round(((fat_g * 9) / Math.max(1, kcal)) * 100),
     fiber_g: round(clamp(w * 0.35, 25, 45)),
     water_l: round(clamp(w * 0.035, 2, 5), 1),
   };

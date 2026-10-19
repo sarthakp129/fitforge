@@ -18,9 +18,12 @@ import {
   buildTrainingPlan, buildNutritionPlan, coachFallback,
   exerciseById, EQUIPMENT_FILTERS, EXERCISES,
 } from './planEngine.js';
+import { getFoodByIdOrName } from './foodService.js';
 import { macroTargets, tdee, round, clamp } from './nutrition.js';
 import { all, run, today } from '../db.js';
 import tokenBudget from './tokenBudget.js';
+
+const titleCase = (s) => String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 const availableExerciseIds = (equipment) => {
   const filter = EQUIPMENT_FILTERS[equipment];
@@ -171,7 +174,101 @@ function sanitizeNutritionOverlay(raw, enginePlan) {
   };
 }
 
+function fullNutritionPrompt(profile, targets, cuisine = 'north_indian') {
+  const isNorthIndian = cuisine === 'north_indian';
+  const cuisineName = isNorthIndian ? 'North Indian' : cuisine === 'south_indian' ? 'South Indian' : 'Balanced Wholesome';
+  const diet = profile.diet_pref || 'omnivore';
 
+  return `${SYSTEM}
+
+ATHLETE TARGETS:
+Daily Calories: ${targets.calories} kcal
+Daily Macros: Protein ${targets.protein_g}g | Carbs ${targets.carbs_g}g | Fat ${targets.fat_g}g
+Dietary Preference: ${diet}
+Allergies/Avoid: ${profile.allergies || 'none'}
+Cuisine Style: ${cuisineName} (Focus on authentic, everyday wholesome staples like dal, roti, sabzi, paneer, sattu, besan chilla, khichdi, raita, chicken tikka, eggs, chana, rajma, etc.)
+
+Task: Generate an authentic, realistic ${cuisineName} daily nutrition plan hitting the exact daily calorie and protein targets.
+Return minified JSON with this EXACT structure:
+{"rationale":"<=50 words explaining how this meal split hits ${targets.calories} kcal and ${targets.protein_g}g protein for their goal",
+"meals":[{"name":"Breakfast","time":"08:00","notes":"<=25 words","foods":[{"name":"Exact dish name (e.g. Besan Chilla with Paneer)","grams":number,"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number,"category":"protein|carb|dairy|veg|fat"}]}],
+"rules":["<=15 words each, 4 actionable rules"],
+"adherence_tip":"<=25 words",
+"grocery":["8-12 core ingredients to buy"]}
+Requirements:
+1. Include Breakfast, Lunch, Dinner, and 1-2 Snacks.
+2. Sum of all meals MUST closely hit ${targets.calories} kcal and ${targets.protein_g}g protein.
+3. Every food must specify realistic portions in grams and true nutritional macros.`;
+}
+
+function sanitizeFullNutritionPlan(raw, targets, cuisine = 'north_indian') {
+  if (!raw || typeof raw !== 'object' || !Array.isArray(raw.meals) || !raw.meals.length) return null;
+
+  const validMeals = raw.meals.map((m, i) => {
+    const rawFoods = Array.isArray(m.foods) ? m.foods : [];
+    const foods = rawFoods.map((f) => {
+      const name = str(f?.name, 120);
+      if (!name) return null;
+      const grams = clamp(Number(f.grams) || 100, 5, 1200);
+      return {
+        name,
+        grams,
+        calories: Math.max(5, Math.round(Number(f.calories) || 100)),
+        protein_g: Math.max(0, Math.round(Number(f.protein_g || 0) * 10) / 10),
+        carbs_g: Math.max(0, Math.round(Number(f.carbs_g || 0) * 10) / 10),
+        fat_g: Math.max(0, Math.round(Number(f.fat_g || 0) * 10) / 10),
+        category: str(f.category, 30) || 'meal',
+        tags: [cuisine, 'ai_crafted'].filter(Boolean),
+      };
+    }).filter(Boolean);
+
+    if (!foods.length) return null;
+
+    const actual = foods.reduce(
+      (acc, f) => ({
+        calories: acc.calories + f.calories,
+        protein_g: acc.protein_g + f.protein_g,
+        carbs_g: acc.carbs_g + f.carbs_g,
+        fat_g: acc.fat_g + f.fat_g,
+      }),
+      { calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 }
+    );
+
+    return {
+      name: str(m.name, 40) || (i === 0 ? 'Breakfast' : i === 1 ? 'Lunch' : i === 2 ? 'Snack' : 'Dinner'),
+      time: str(m.time, 10) || (i === 0 ? '08:00' : i === 1 ? '13:00' : i === 2 ? '17:00' : '20:00'),
+      target_calories: Math.round(actual.calories),
+      calories: Math.round(actual.calories),
+      protein_g: Math.round(actual.protein_g * 10) / 10,
+      carbs_g: Math.round(actual.carbs_g * 10) / 10,
+      fat_g: Math.round(actual.fat_g * 10) / 10,
+      foods,
+      alternatives: Array.isArray(m.alternatives) ? m.alternatives.slice(0, 2) : [],
+      notes: str(m.notes, 300) || '',
+    };
+  }).filter(Boolean);
+
+  if (validMeals.length < 2) return null;
+
+  return {
+    targets,
+    overview: str(raw.rationale, 600) || `Authentic ${titleCase(cuisine)} daily meal plan customized to your target numbers.`,
+    rationale: str(raw.rationale, 600),
+    meals: validMeals,
+    rules: arrStr(raw.rules, 6) || [
+      'Pair whole grains (roti/rice) with lentils/dals for complete protein absorption.',
+      'Control cooking ghee and mustard oil to measured spoons.',
+      'Incorporate fresh dahi, chaas, or salad with main meals.',
+      'Hydrate with at least 3 liters of water across the day.',
+    ],
+    adherence_tip: str(raw.adherence_tip, 260) || 'Pre-cook lentils and sprouted legumes in advance for fast, high-protein weekday meals.',
+    grocery: arrStr(raw.grocery, 16) || [
+      'Atta (whole wheat flour)', 'Yellow moong dal', 'Paneer or Tofu',
+      'Basmati rice', 'Fresh dahi', 'Sprouted moong beans',
+      'Seasonal vegetables (spinach, cauliflower, okra)', 'Roasted chana or sattu'
+    ],
+  };
+}
 
 /* ------------------------------- merging -------------------------------- */
 
@@ -401,9 +498,10 @@ function mergeFullPlan(engine, ai) {
   };
 }
 
-export async function generateNutritionPlan(userId, profile, { mode = 'overlay', force = false, onProgress } = {}) {
+export async function generateNutritionPlan(userId, profile, { mode = 'full', cuisine = 'north_indian', force = false, onProgress } = {}) {
+  const targets = macroTargets(profile);
   const engine = buildNutritionPlan(profile);
-  const key = planCacheKey(userId, 'nutrition', profile, '', { mode });
+  const key = planCacheKey(userId, 'nutrition', profile, '', { mode, cuisine });
   if (!force) {
     const hit = cacheGet(key);
     if (hit) return { ...hit.payload, meta: { ...hit.payload.meta, source: 'cache', model: hit.model, cached: true } };
@@ -412,9 +510,49 @@ export async function generateNutritionPlan(userId, profile, { mode = 'overlay',
   if (!config.groq.apiKey || !config.groq.enabled) {
     engine.meta.source = 'engine';
     engine.meta.reason = config.groq.apiKey ? 'AI disabled' : 'GROQ_API_KEY not configured';
+    engine.meta.cuisine = cuisine;
     return engine;
   }
 
+  // 1. Full AI Generation Mode (preferred for North Indian and explicit full mode)
+  if (mode === 'full' || cuisine === 'north_indian') {
+    try {
+      onProgress?.({ phase: 'generating', model: config.groq.planningModel });
+      const fullRes = await complete({
+        messages: [
+          { role: 'system', content: SYSTEM },
+          { role: 'user', content: fullNutritionPrompt(profile, targets, cuisine) },
+        ],
+        json: true,
+        endpoint: 'ai.plan.nutrition.full',
+        userId,
+        model: config.groq.planningModel,
+        maxTokens: 1600,
+        onProgress,
+      });
+
+      const fullPlan = sanitizeFullNutritionPlan(fullRes.json, targets, cuisine);
+      if (fullPlan) {
+        fullPlan.meta = {
+          name: `${titleCase(cuisine)} Nutrition Plan`,
+          source: 'ai',
+          model: fullRes.model,
+          tokens: fullRes.usage?.total_tokens || 0,
+          cuisine,
+          mode: 'full',
+          personalised: true,
+        };
+        cacheSet(key, 'nutrition', fullPlan, { model: fullRes.model, tokens: fullRes.usage?.total_tokens || 0 });
+        return fullPlan;
+      }
+      onProgress?.({ phase: 'degraded', reason: fullRes.parseError || 'model returned incomplete meal structure' });
+    } catch (err) {
+      console.warn('[aiService] full nutrition generation failed, falling back to overlay:', err.message);
+      onProgress?.({ phase: 'degraded', reason: err.message });
+    }
+  }
+
+  // 2. Fallback: Overlay on local engine plan
   const ctx = {
     profile: compactProfile(profile),
     planSkeleton: planSkeletonFor('nutrition', engine),
@@ -427,7 +565,7 @@ export async function generateNutritionPlan(userId, profile, { mode = 'overlay',
         { role: 'system', content: SYSTEM },
         { role: 'user', content: overlayPrompt('nutrition', ctx) },
       ],
-      json: true, endpoint: 'ai.plan.nutrition', userId,
+      json: true, endpoint: 'ai.plan.nutrition.overlay', userId,
       model: config.groq.fastModel,
       maxTokens: 1200,
       reasoningEffort: 'minimal',
@@ -437,14 +575,16 @@ export async function generateNutritionPlan(userId, profile, { mode = 'overlay',
     const plan = applyNutritionOverlay(engine, overlay);
     plan.meta.source = overlay ? 'ai' : 'engine';
     plan.meta.model = res.model;
-    plan.meta.tokens = res.usage.total_tokens;
+    plan.meta.tokens = res.usage?.total_tokens || 0;
+    plan.meta.cuisine = cuisine;
     if (!overlay) plan.meta.reason = res.parseError || 'overlay rejected by validation';
-    cacheSet(key, 'nutrition', plan, { model: res.model, tokens: res.usage.total_tokens });
+    cacheSet(key, 'nutrition', plan, { model: res.model, tokens: res.usage?.total_tokens || 0 });
     return plan;
   } catch (err) {
     engine.meta.source = 'engine';
     engine.meta.reason = err.message;
     engine.meta.degraded = true;
+    engine.meta.cuisine = cuisine;
     if (!config.engineFallback) throw err;
     return engine;
   }
@@ -551,6 +691,243 @@ Return minified JSON: {"headline":"<=25 words, includes a real number","advice":
     cacheSet(key, 'insight', local, { model: 'engine', tokens: 0 });
     return local;
   }
+}
+
+/* ------------------------- food macro estimation ------------------------ */
+
+function heuristicFoodEstimate(foodName, grams = 100) {
+  const g = Math.max(1, Math.min(5000, Number(grams) || 100));
+  const n = String(foodName || '').toLowerCase();
+
+  let kcalPer100 = 160;
+  let pPer100 = 6;
+  let cPer100 = 20;
+  let fPer100 = 6;
+  let cat = 'meal';
+
+  if (/paneer|tofu/i.test(n)) {
+    kcalPer100 = 260; pPer100 = 18; cPer100 = 5; fPer100 = 20; cat = 'protein';
+  } else if (/chicken|meat|mutton|fish|egg|prawn/i.test(n)) {
+    kcalPer100 = 180; pPer100 = 22; cPer100 = 4; fPer100 = 8; cat = 'protein';
+  } else if (/dal|lentil|rajma|chole|chana|sattu|besan/i.test(n)) {
+    kcalPer100 = 130; pPer100 = 8; cPer100 = 20; fPer100 = 2.5; cat = 'protein';
+  } else if (/roti|paratha|naan|bread|chapati|phulka|thepla/i.test(n)) {
+    kcalPer100 = /paratha|naan/i.test(n) ? 270 : 250;
+    pPer100 = 8; cPer100 = 48; fPer100 = /paratha|naan/i.test(n) ? 8 : 2; cat = 'carb';
+  } else if (/rice|biryani|pulao|khichdi|poha|idli|dosa/i.test(n)) {
+    kcalPer100 = /biryani/i.test(n) ? 170 : 135;
+    pPer100 = /biryani/i.test(n) ? 8 : 3.5; cPer100 = 26; fPer100 = /biryani/i.test(n) ? 5 : 1.5; cat = 'carb';
+  } else if (/curd|dahi|yogurt|raita|lassi|chaas/i.test(n)) {
+    kcalPer100 = /chaas/i.test(n) ? 35 : 65;
+    pPer100 = 3.5; cPer100 = 5; fPer100 = /chaas/i.test(n) ? 1 : 3.5; cat = 'dairy';
+  } else if (/sabzi|bhindi|gobhi|baingan|palak|salad|veg/i.test(n)) {
+    kcalPer100 = 65; pPer100 = 2; cPer100 = 8; fPer100 = 3; cat = 'veg';
+  } else if (/makhana|nuts|peanut|almond|cashew/i.test(n)) {
+    kcalPer100 = /makhana/i.test(n) ? 350 : 580;
+    pPer100 = /makhana/i.test(n) ? 9 : 20; cPer100 = /makhana/i.test(n) ? 65 : 20; fPer100 = /makhana/i.test(n) ? 4 : 50; cat = 'snack';
+  }
+
+  const ratio = g / 100;
+  return {
+    food_name: foodName,
+    grams: g,
+    calories: Math.round(kcalPer100 * ratio),
+    protein_g: Math.round(pPer100 * ratio * 10) / 10,
+    carbs_g: Math.round(cPer100 * ratio * 10) / 10,
+    fat_g: Math.round(fPer100 * ratio * 10) / 10,
+    category: cat,
+    confidence: 'heuristic',
+    summary: `${g}g estimated using nutritional density heuristics.`,
+    source: 'engine_heuristic',
+  };
+}
+
+export async function estimateFoodMacros(foodName, grams = 100, context = {}) {
+  const cleanName = String(foodName || '').trim().slice(0, 120);
+  const cleanGrams = Math.max(1, Math.min(5000, Number(grams) || 100));
+  if (!cleanName) throw new Error('food_name is required for macro estimation.');
+
+  const cacheKeyStr = cacheKey('food_est', { f: cleanName.toLowerCase(), g: cleanGrams });
+  const cached = cacheGet(cacheKeyStr);
+  if (cached?.payload) return { ...cached.payload, cached: true };
+
+  // 1. Check local database
+  const known = getFoodByIdOrName(cleanName, context.userId || null);
+  if (known) {
+    const ratio = cleanGrams / 100;
+    const est = {
+      food_name: known.name,
+      grams: cleanGrams,
+      calories: Math.round((known.kcal / 100) * cleanGrams),
+      protein_g: Math.round(((known.protein_g / 100) * cleanGrams) * 10) / 10,
+      carbs_g: Math.round(((known.carbs_g / 100) * cleanGrams) * 10) / 10,
+      fat_g: Math.round(((known.fat_g / 100) * cleanGrams) * 10) / 10,
+      category: known.category || 'meal',
+      source: 'database',
+      confidence: 'verified',
+      summary: `${cleanGrams}g of ${known.name} provides ${Math.round((known.kcal / 100) * cleanGrams)} kcal with ${Math.round(((known.protein_g / 100) * cleanGrams) * 10) / 10}g protein.`,
+    };
+    return est;
+  }
+
+  // 2. Offline fallback if no API key
+  if (!config.groq.apiKey || !config.groq.enabled) {
+    return heuristicFoodEstimate(cleanName, cleanGrams);
+  }
+
+  // 3. Groq LPU calculation
+  const prompt = `${SYSTEM}
+Task: Estimate realistic cooked/consumed nutritional values for this dish and quantity.
+Food: "${cleanName}"
+Quantity: ${cleanGrams} grams
+Context: Standard home cooking / Indian / international preparation. Be realistic about standard cooking fats/oils.
+
+Return minified JSON:
+{"food_name":"${cleanName}","grams":${cleanGrams},"calories":number,"protein_g":number,"carbs_g":number,"fat_g":number,"category":"protein|carb|fat|dairy|veg|snack|meal","confidence":"high|moderate","summary":"<=20 words explaining portion context"}`;
+
+  try {
+    const res = await complete({
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: prompt },
+      ],
+      json: true,
+      endpoint: 'ai.nutrition.estimate',
+      model: config.groq.fastModel,
+      maxTokens: 350,
+      reasoningEffort: 'minimal',
+    });
+
+    const parsed = res.json;
+    if (parsed && Number(parsed.calories) >= 0) {
+      const result = {
+        food_name: str(parsed.food_name, 120) || cleanName,
+        grams: cleanGrams,
+        calories: Math.max(0, Math.round(Number(parsed.calories))),
+        protein_g: Math.max(0, Math.round(Number(parsed.protein_g || 0) * 10) / 10),
+        carbs_g: Math.max(0, Math.round(Number(parsed.carbs_g || 0) * 10) / 10),
+        fat_g: Math.max(0, Math.round(Number(parsed.fat_g || 0) * 10) / 10),
+        category: str(parsed.category, 30) || 'meal',
+        confidence: str(parsed.confidence, 20) || 'high',
+        summary: str(parsed.summary, 160) || `${cleanGrams}g of ${cleanName}`,
+        source: 'ai_estimate',
+        model: res.model,
+      };
+      cacheSet(cacheKeyStr, 'food_est', result, { model: res.model, tokens: res.usage?.total_tokens || 0 });
+      return result;
+    }
+  } catch (err) {
+    console.warn('[aiService] estimateFoodMacros error, using heuristic fallback:', err.message);
+  }
+
+  return heuristicFoodEstimate(cleanName, cleanGrams);
+}
+
+/* ----------------------- exercise coaching guide ------------------------ */
+
+function deterministicExerciseGuide(ex, targetWeight = 0, profile = {}) {
+  const name = ex?.name || 'Exercise';
+  const substitutes = (ex?.substitutes || []).slice(0, 3);
+  return {
+    exercise_id: ex?.id || 'exercise',
+    exercise_name: name,
+    setup_cues: [
+      'Set a stable base of support with neutral spine and feet rooted into the floor.',
+      'Inhale deeply into your abdomen to create 360-degree intra-abdominal pressure.',
+      'Establish a firm grip with wrists aligned and shoulder blades set.',
+    ],
+    execution_cues: [
+      ex?.cue || 'Control the eccentric descent for 2-3 seconds; avoid bouncing at turnaround.',
+      'Accelerate smoothly through the concentric stroke without jerky momentum.',
+      'Maintain continuous tension on the target musculature through full range of motion.',
+    ],
+    common_mistakes: [
+      'Sacrificing range of motion to handle heavier load — reduce weight and hit full depth.',
+      'Letting joints drift out of alignment during the hardest turnaround phase.',
+    ],
+    warmup_protocol: targetWeight > 35 ? [
+      { set: 1, weight: `${Math.round(targetWeight * 0.45)} kg`, reps: '10', note: 'Movement groove & joint warm-up' },
+      { set: 2, weight: `${Math.round(targetWeight * 0.70)} kg`, reps: '5', note: 'CNS potentiation' },
+      { set: 3, weight: `${Math.round(targetWeight * 0.88)} kg`, reps: '2', note: 'Primer set, zero metabolic fatigue' },
+    ] : [
+      { set: 1, weight: 'Bodyweight / light', reps: '10-12', note: 'Joint mobilization' },
+      { set: 2, weight: 'Moderate load', reps: '6', note: 'Neural primer' },
+    ],
+    smart_substitutes: substitutes.length ? substitutes : ['Machine equivalent', 'Dumbbell variation', 'Cable press/pull'],
+    safety_cue: 'Sharp joint discomfort is an immediate stop signal. Regress the variation or adjust the path.',
+    source: 'engine',
+  };
+}
+
+export async function exerciseCoachingGuide(exerciseId, profile = {}, context = {}) {
+  const ex = exerciseById(exerciseId);
+  const exName = ex?.name || exerciseId;
+  const targetWeight = Number(context.weight_kg) || 0;
+  const targetReps = context.reps || '8-10';
+
+  const cacheKeyStr = cacheKey('ex_guide', {
+    ex: exerciseId,
+    exp: profile.experience || 'intermediate',
+    inj: profile.injuries || '',
+    w: targetWeight > 0 ? Math.round(targetWeight) : 0,
+  });
+  const cached = cacheGet(cacheKeyStr);
+  if (cached?.payload) return { ...cached.payload, cached: true };
+
+  if (!config.groq.apiKey || !config.groq.enabled) {
+    return deterministicExerciseGuide(ex, targetWeight, profile);
+  }
+
+  const prompt = `${SYSTEM}
+Athlete Experience: ${profile.experience || 'intermediate'}
+Equipment Available: ${profile.equipment || 'full_gym'}
+Injuries/Notes: ${profile.injuries || 'none'}
+Exercise: ${exName} (Category: ${ex?.category || 'compound'}, Target muscles: ${(ex?.muscles || []).join(', ')})
+Current Working Load Target: ${targetWeight > 0 ? `${targetWeight} kg x ${targetReps}` : 'bodyweight or moderate weight'}
+
+Task: Provide an elite, personalized biomechanics & coaching breakdown for this lift.
+Return minified JSON:
+{"setup_cues":["<=12 words each, 3 actionable setup steps"],
+"execution_cues":["<=14 words each, 3 execution cues (eccentric, breathing, mind-muscle)"],
+"common_mistakes":["<=14 words each, 2 common faults with instant fix"],
+"warmup_protocol":[{"set":1,"weight":"e.g. 50% or 40 kg","reps":"8-10","note":"Warmup"},{"set":2,"weight":"e.g. 75% or 65 kg","reps":"4","note":"Potentiation"},{"set":3,"weight":"e.g. 90% or 80 kg","reps":"1-2","note":"Primer"}],
+"smart_substitutes":["2-3 alternative exercises if equipment is taken or joint pain arises"],
+"safety_cue":"<=20 words on joint safety and pain signals"}`;
+
+  try {
+    const res = await complete({
+      messages: [
+        { role: 'system', content: SYSTEM },
+        { role: 'user', content: prompt },
+      ],
+      json: true,
+      endpoint: 'ai.exercise.guide',
+      model: config.groq.fastModel,
+      maxTokens: 500,
+      reasoningEffort: 'minimal',
+    });
+
+    if (res.json) {
+      const guide = {
+        exercise_id: exerciseId,
+        exercise_name: exName,
+        setup_cues: arrStr(res.json.setup_cues, 4) || [],
+        execution_cues: arrStr(res.json.execution_cues, 4) || [],
+        common_mistakes: arrStr(res.json.common_mistakes, 3) || [],
+        warmup_protocol: Array.isArray(res.json.warmup_protocol) ? res.json.warmup_protocol.slice(0, 4) : [],
+        smart_substitutes: arrStr(res.json.smart_substitutes, 3) || [],
+        safety_cue: str(res.json.safety_cue, 180),
+        source: 'ai',
+        model: res.model,
+      };
+      cacheSet(cacheKeyStr, 'ex_guide', guide, { model: res.model, tokens: res.usage?.total_tokens || 0 });
+      return guide;
+    }
+  } catch (err) {
+    console.warn('[aiService] exerciseCoachingGuide failed, falling back:', err.message);
+  }
+
+  return deterministicExerciseGuide(ex, targetWeight, profile);
 }
 
 export { compactProfile, persistPlan, cacheKey };
