@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import useStore from '../store/useStore.js';
 import api from '../lib/api.js';
 import { nf, fmtDateTime, titleCase, activityLabel, equipmentLabel, goalLabel, dietLabel } from '../lib/format.js';
-import { Card, CardHead, Button, Chip, Field, Input, Textarea, Icon, Reveal, Spinner, Segmented } from './ui.jsx';
+import { Card, CardHead, Button, Chip, Field, Input, Textarea, Icon, Reveal, Segmented } from './ui.jsx';
 import { SliderField, WheelPicker, TileGroup, PasswordInput } from './Controls.jsx';
 import { dateForAge, ageFromDate } from '../lib/format.js';
 import useScrollSpy from '../hooks/useScrollSpy.js';
@@ -11,7 +11,6 @@ import GoogleSignIn from './GoogleSignIn.jsx';
 const SECTIONS = [
   { id: 'sec-profile', label: 'Athlete Profile' },
   { id: 'sec-preferences', label: 'Units & Saved Meals' },
-  { id: 'sec-ai', label: 'AI & Budget' },
   { id: 'sec-account', label: 'Account & Security' },
 ];
 
@@ -34,7 +33,7 @@ const TIMEZONES = [
 export default function Settings() {
   const {
     profile, derived, options, saveProfile, handleError, toast, logout,
-    aiStatus, refreshAiStatus, setBudget, user, updateName, linkGoogle, unlinkGoogle,
+    user, updateName, linkGoogle, unlinkGoogle,
     savedMeals, fetchSavedMeals, deleteSavedMeal, saveMealPreset, toggleFavoriteExercise,
   } = useStore();
 
@@ -42,12 +41,6 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [nameInput, setNameInput] = useState(user?.name || '');
   const [savingName, setSavingName] = useState(false);
-  const [models, setModels] = useState(null);
-  const [modelsBusy, setModelsBusy] = useState(false);
-  const [test, setTest] = useState(null);
-  const [testing, setTesting] = useState(false);
-  const [usage, setUsage] = useState(null);
-  const [budgetForm, setBudgetForm] = useState({ tokensPerMinute: '', requestsPerMinute: '', requestsPerDay: '' });
   const [pw, setPw] = useState({ current: '', next: '' });
   const [newMealName, setNewMealName] = useState('');
   const [newMealKcal, setNewMealKcal] = useState('');
@@ -61,19 +54,8 @@ export default function Settings() {
   useEffect(() => { if (user?.name) setNameInput(user.name); }, [user?.name]);
 
   useEffect(() => {
-    if (aiStatus?.budget) {
-      setBudgetForm({
-        tokensPerMinute: String(aiStatus.budget.tokensPerMinute || ''),
-        requestsPerMinute: String(aiStatus.budget.requestsPerMinute || ''),
-        requestsPerDay: String(aiStatus.budget.requestsPerDay || ''),
-      });
-    }
-  }, [aiStatus?.budget?.tokensPerMinute, aiStatus?.budget?.requestsPerMinute, aiStatus?.budget?.requestsPerDay]);
-
-  useEffect(() => {
-    api.ai.usage(7).then(setUsage).catch(() => setUsage(null));
     fetchSavedMeals().catch(() => {});
-  }, []);
+  }, [fetchSavedMeals]);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const setVal = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
@@ -152,47 +134,7 @@ export default function Settings() {
     }
   };
 
-  const runTest = async () => {
-    setTesting(true); setTest(null);
-    try {
-      const res = await api.ai.test();
-      setTest({ ok: true, ...res });
-      toast(`Groq reachable — ${res.model} answered in ${res.latencyMs} ms.`, 'ok');
-      refreshAiStatus();
-    } catch (err) {
-      setTest({ ok: false, message: err.message, hint: err.body?.hint, status: err.status });
-      handleError(err, 'The Groq test call failed.');
-    } finally { setTesting(false); }
-  };
 
-  const loadModels = async () => {
-    setModelsBusy(true);
-    try {
-      const res = await api.ai.models(true);
-      setModels(res);
-      if (res.error) toast(res.error, 'warn', 6000);
-    } catch (err) { handleError(err, 'Could not list models.'); }
-    finally { setModelsBusy(false); }
-  };
-
-  const applyBudget = async () => {
-    try {
-      await setBudget({
-        tokensPerMinute: Number(budgetForm.tokensPerMinute) || undefined,
-        requestsPerMinute: Number(budgetForm.requestsPerMinute) || undefined,
-        requestsPerDay: Number(budgetForm.requestsPerDay) || undefined,
-      });
-    } catch (err) { handleError(err); }
-  };
-
-  const purge = async () => {
-    if (!window.confirm('Clear the AI response cache? Identical requests will cost tokens again.')) return;
-    try {
-      const res = await api.ai.purgeCache();
-      toast(`Cache cleared (${res.deleted} entries).`, 'ok', 2600);
-      refreshAiStatus();
-    } catch (err) { handleError(err); }
-  };
 
   const changePassword = async (e) => {
     e.preventDefault();
@@ -471,133 +413,7 @@ export default function Settings() {
               </Card>
             </Reveal>
 
-            {/* --------------------------------- ai ----------------------------- */}
-            <Reveal>
-              <Card solid className="card-pad-lg stack gap-16" id="sec-ai">
-                <CardHead
-                  eyebrow="Intelligence"
-                  title="Groq connection"
-                  subtitle="Key status, models, live budget."
-                  right={<Chip tone={aiStatus?.configured ? 'ok' : 'warn'}>{aiStatus?.configured ? 'key active' : 'no key'}</Chip>}
-                />
 
-                <div className="grid grid-2 gap-12">
-                  <div className="stack gap-6">
-                    <span className="eyebrow">Planning model</span>
-                    <span className="mono small">{aiStatus?.planningModel || '—'}</span>
-                  </div>
-                  <div className="stack gap-6">
-                    <span className="eyebrow">Chat model</span>
-                    <span className="mono small">{aiStatus?.fastModel || '—'}</span>
-                  </div>
-                </div>
-
-                <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-                  {(aiStatus?.fallbackChain || []).map((m, i) => (
-                    <Chip key={`${m}-${i}`} tone={i === 0 ? 'ember' : 'ghost'}>{i === 0 ? 'primary' : `fallback ${i}`}: <span className="mono">{m}</span></Chip>
-                  ))}
-                </div>
-
-                <div className="row gap-10" style={{ flexWrap: 'wrap' }}>
-                  <Button variant="soft" onClick={runTest} disabled={testing || !aiStatus?.configured} loading={testing}>
-                    <Icon name="bolt" size={15} /> Test connection
-                  </Button>
-                  <Button variant="ghost" onClick={loadModels} disabled={modelsBusy || !aiStatus?.configured}>
-                    {modelsBusy ? <Spinner size={14} /> : <Icon name="refresh" size={15} />} List available models
-                  </Button>
-                  <Button variant="ghost" onClick={purge}><Icon name="trash" size={15} /> Purge AI cache</Button>
-                </div>
-
-                {test && (
-                  <Card style={{ background: test.ok ? 'var(--ok-soft)' : 'var(--rose-soft)', border: 0 }}>
-                    {test.ok ? (
-                      <div className="stack gap-4">
-                        <div className="row gap-8 strong small"><Icon name="check" size={15} style={{ color: 'var(--ok)' }} /> Connected</div>
-                        <div className="tiny mono muted">
-                          {test.model} · replied “{test.reply}” · {test.usage?.total_tokens} tokens · {test.latencyMs} ms
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="stack gap-4">
-                        <div className="row gap-8 strong small" style={{ color: 'var(--rose)' }}><Icon name="close" size={15} /> Failed{test.status ? ` (HTTP ${test.status})` : ''}</div>
-                        <div className="tiny muted">{test.message}</div>
-                        {test.hint && <div className="tiny">{test.hint}</div>}
-                      </div>
-                    )}
-                  </Card>
-                )}
-
-                {models?.models?.length > 0 && (
-                  <div className="stack gap-8">
-                    <span className="eyebrow">Models on this key ({models.models.length})</span>
-                    <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-                      {models.models.map((m) => (
-                        <Chip key={m.id} tone={m.id === aiStatus?.planningModel || m.id === aiStatus?.fastModel ? 'teal' : 'ghost'}>
-                          <span className="mono">{m.id}</span>
-                          {m.context_window ? <span className="muted"> · {nf(m.context_window / 1000)}k ctx</span> : null}
-                        </Chip>
-                      ))}
-                    </div>
-                    <div className="tiny muted">Set <span className="mono">GROQ_MODEL</span> / <span className="mono">GROQ_MODEL_FAST</span> in your .env to switch defaults.</div>
-                  </div>
-                )}
-
-                <div className="divider" />
-
-                <div className="stack gap-12">
-                  <CardHead eyebrow="Governor" title="Token budget" subtitle="Kept below your key’s real limits. Groq response headers can only tighten these, never loosen them." />
-                  <div className="grid grid-3">
-                    <Field label="Tokens / minute"><Input className="input-num" type="number" min="100" step="100" value={budgetForm.tokensPerMinute} onChange={(e) => setBudgetForm({ ...budgetForm, tokensPerMinute: e.target.value })} /></Field>
-                    <Field label="Requests / minute"><Input className="input-num" type="number" min="1" step="1" value={budgetForm.requestsPerMinute} onChange={(e) => setBudgetForm({ ...budgetForm, requestsPerMinute: e.target.value })} /></Field>
-                    <Field label="Requests / day"><Input className="input-num" type="number" min="1" step="10" value={budgetForm.requestsPerDay} onChange={(e) => setBudgetForm({ ...budgetForm, requestsPerDay: e.target.value })} /></Field>
-                  </div>
-                  <div className="row gap-10" style={{ flexWrap: 'wrap' }}>
-                    <Button variant="soft" size="sm" onClick={applyBudget}>Apply</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setBudget({ tokensPerMinute: 1000, requestsPerMinute: 10, requestsPerDay: 300 })}>Conservative (1K TPM)</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setBudget({ tokensPerMinute: 6000, requestsPerMinute: 20, requestsPerDay: 900 })}>Free tier (6K TPM)</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setBudget({ tokensPerMinute: 8000, requestsPerMinute: 28, requestsPerDay: 950 })}>Maximum</Button>
-                  </div>
-                </div>
-
-                {usage && (
-                  <div className="stack gap-10">
-                    <span className="eyebrow">Usage, last 7 days</span>
-                    <div className="table-scroll">
-                      <table className="table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Day</th>
-                            <th scope="col" className="table-num">Calls</th>
-                            <th scope="col" className="table-num">Tokens</th>
-                            <th scope="col" className="table-num">Cache hits</th>
-                            <th scope="col" className="table-num">Avg latency</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {usage.per_day.map((d) => (
-                            <tr key={d.day}>
-                              <td className="strong">{d.day}</td>
-                              <td className="table-num">{d.calls}</td>
-                              <td className="table-num">{nf(d.tokens)}</td>
-                              <td className="table-num">{d.cache_hits}</td>
-                              <td className="table-num muted">{nf(d.avg_latency_ms)} ms</td>
-                            </tr>
-                          ))}
-                          {!usage.per_day.length && <tr><td colSpan={5} className="muted tiny">No AI calls yet.</td></tr>}
-                        </tbody>
-                      </table>
-                    </div>
-                    {usage.by_endpoint?.length > 0 && (
-                      <div className="row gap-8" style={{ flexWrap: 'wrap' }}>
-                        {usage.by_endpoint.map((e) => (
-                          <Chip key={e.endpoint} tone="ghost"><span className="mono">{e.endpoint}</span> · {nf(e.tokens)} tok</Chip>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </Card>
-            </Reveal>
 
             {/* ------------------------------ account --------------------------- */}
             <Reveal>

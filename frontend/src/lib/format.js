@@ -121,9 +121,6 @@ export function humanOverview(plan) {
 }
 
 export const sourceChip = (source) => {
-  if (!source) return { label: 'local', cls: 'chip-ghost' };
-  if (source === 'ai') return { label: 'AI personalised', cls: 'chip-ember' };
-  if (source === 'cache') return { label: 'cached AI', cls: 'chip-teal' };
-  if (String(source).startsWith('engine')) return { label: 'local engine', cls: 'chip-ghost' };
-  return { label: source, cls: 'chip-ghost' };
+  if (source === 'ai' || source === 'cache') return { label: 'AI Personalized', cls: 'chip-ember' };
+  return { label: 'Custom Plan', cls: 'chip-teal' };
 };

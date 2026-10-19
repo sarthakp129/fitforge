@@ -79,11 +79,6 @@ export default function CoachPanel({ voiceReplies = false, onVoiceFail } = {}) {
           await audio.play().catch(() => {});
         }).catch((err) => onVoiceFail?.(err));
       }
-      if (String(res.source).startsWith('engine')) {
-        toast(res.source === 'engine:throttled'
-          ? 'Token budget full — local coach answered.'
-          : 'Local coach answered (no AI key).', 'warn', 4200);
-      }
     } catch (err) {
       setMessages((m) => m.filter((x) => !x.optimistic));
       setInput(message);
@@ -170,9 +165,6 @@ export default function CoachPanel({ voiceReplies = false, onVoiceFail } = {}) {
         {messages.map((m, i) => (
           <div key={m.id || i} className={`bubble ${m.role === 'user' ? 'bubble-user' : 'bubble-ai'}`}>
             {m.content}
-            {m.role === 'assistant' && m.source !== 'ai' && (
-              <div className="bubble-meta"><span>offline answer</span></div>
-            )}
           </div>
         ))}
         {busy && (
