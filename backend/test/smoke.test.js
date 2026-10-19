@@ -174,12 +174,21 @@ async function main() {
     assert.equal(r.body.is_new, false);
   });
 
-  await test('POST /api/auth/google rejects silent account linking when password account exists', async () => {
+  await test('POST /api/auth/google automatically links verified Google identity to existing account', async () => {
     const r = await call('POST', '/api/auth/google', {
-      credential: 'test-google-token:sub-diff-2:athlete@fitforge.test:Attacker Name:valid',
+      credential: 'test-google-token:sub-athlete-linked:athlete@fitforge.test:Test Athlete:valid',
     }, { noAuth: true });
-    assert.equal(r.status, 409);
-    assert.equal(r.body.requires_link, true);
+    assert.equal(r.status, 200);
+    assert.equal(r.body.user.email, 'athlete@fitforge.test');
+    assert.equal(r.body.user.google_linked, true);
+  });
+
+  await test('POST /api/auth/google/unlink disconnects Google identity', async () => {
+    const r = await call('POST', '/api/auth/google/unlink', {});
+    assert.equal(r.status, 200);
+    assert.equal(r.body.ok, true);
+    const me = await call('GET', '/api/auth/me');
+    assert.equal(me.body.user.google_linked, false);
   });
 
   await test('POST /api/auth/google/link links Google identity to authenticated account', async () => {
@@ -190,14 +199,6 @@ async function main() {
     assert.equal(r.body.ok, true);
     const me = await call('GET', '/api/auth/me');
     assert.equal(me.body.user.google_linked, true);
-  });
-
-  await test('POST /api/auth/google/unlink disconnects Google identity', async () => {
-    const r = await call('POST', '/api/auth/google/unlink', {});
-    assert.equal(r.status, 200);
-    assert.equal(r.body.ok, true);
-    const me = await call('GET', '/api/auth/me');
-    assert.equal(me.body.user.google_linked, false);
   });
 
   await test('PUT /api/profile persists timezone, units, and favorite exercises', async () => {

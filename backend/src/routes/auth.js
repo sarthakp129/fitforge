@@ -103,15 +103,17 @@ router.post('/google', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res
     });
   }
 
-  // 2. Check if user exists by email without Google linkage
+  // 2. Check if user exists by email without Google linkage -> automatically link and sign in
   const existingByEmail = get('SELECT * FROM users WHERE email = ?', googleUser.email);
   if (existingByEmail) {
-    // Prevent unsafe automatic identity linking
-    throw new ApiError(
-      409,
-      'An account with this email already exists with password authentication. Sign in with your password first, then link Google in Settings.',
-      { requires_link: true }
-    );
+    run('UPDATE users SET google_id = ? WHERE id = ?', googleUser.sub, existingByEmail.id);
+    user = get('SELECT * FROM users WHERE id = ?', existingByEmail.id);
+    return res.json({
+      token: issueSession(res, user),
+      user: publicUser(user),
+      profile: get('SELECT * FROM profiles WHERE user_id = ?', user.id),
+      is_new: false,
+    });
   }
 
   // 3. New user registration via Google
