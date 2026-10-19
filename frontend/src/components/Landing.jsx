@@ -702,7 +702,7 @@ export default function Landing() {
               </div>
             ) : (
               filteredExercises.map((ex, i) => (
-                <Reveal key={ex.id} delay={Math.min(i * 25, 200)}>
+                <Reveal key={ex.id} delay={Math.min(i * 25, 200)} className="catalog-reveal">
                   <div
                     className="catalog-card"
                     onClick={() => setSelectedExercise(ex)}
@@ -712,34 +712,36 @@ export default function Landing() {
                     style={{ cursor: 'pointer' }}
                     title="Click to inspect biomechanics and form cues"
                   >
-                    <div className="row-between">
-                      <span className="strong" style={{ fontSize: '0.98rem' }}>{ex.name}</span>
-                      <Chip tone="ghost" style={{ fontSize: '0.74rem' }}>{ex.equipment}</Chip>
+                    <div className="catalog-card-header">
+                      <span className="catalog-card-title">{ex.name}</span>
+                      <Chip tone="ghost" className="catalog-card-chip">{ex.equipment}</Chip>
                     </div>
 
-                    <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                    <div className="catalog-card-tags">
                       {(ex.muscles || []).map((m) => (
-                        <span key={m} className="tiny muted" style={{ background: 'var(--surface-2)', padding: '2px 8px', borderRadius: 6 }}>
+                        <span key={m} className="tiny muted catalog-tag">
                           {m}
                         </span>
                       ))}
                       {ex.compound && (
-                        <span className="tiny strong" style={{ color: 'var(--ember)', padding: '2px 6px' }}>
+                        <span className="tiny strong catalog-compound-tag">
                           Compound
                         </span>
                       )}
                     </div>
 
-                    {ex.cue && (
-                      <div className="tiny muted row gap-4" style={{ lineHeight: 1.45, marginTop: 4, alignItems: 'flex-start' }}>
-                        <Icon name="bolt" size={12} style={{ color: 'var(--ember)', flex: 'none', marginTop: 2 }} />
-                        <span>{ex.cue}</span>
-                      </div>
-                    )}
+                    <div className="catalog-card-cue">
+                      {ex.cue && (
+                        <>
+                          <Icon name="bolt" size={12} className="catalog-cue-icon" />
+                          <span className="catalog-cue-text">{ex.cue}</span>
+                        </>
+                      )}
+                    </div>
 
-                    <div className="row-between tiny muted" style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--line-2)' }}>
-                      <span style={{ fontSize: '0.76rem', color: 'var(--ember-text)' }}>Inspect biomechanics</span>
-                      <Icon name="arrowRight" size={12} style={{ color: 'var(--ember-text)' }} />
+                    <div className="catalog-card-footer">
+                      <span>Inspect biomechanics</span>
+                      <Icon name="arrowRight" size={12} />
                     </div>
                   </div>
                 </Reveal>
