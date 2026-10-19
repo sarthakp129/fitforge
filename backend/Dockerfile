@@ -22,6 +22,7 @@ RUN apk add --no-cache tini
 COPY --from=deps --chown=node:node /app/node_modules ./node_modules
 COPY --chown=node:node package.json ./
 COPY --chown=node:node src ./src
+COPY --chown=node:node scripts ./scripts
 
 RUN mkdir -p /app/data && chown -R node:node /app/data
 
