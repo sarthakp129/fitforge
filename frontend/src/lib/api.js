@@ -136,9 +136,14 @@ export const api = {
   index: () => request('/api', { auth: false }),
 
   auth: {
+    config: () => request('/api/auth/config', { auth: false }),
     register: (payload) => request('/api/auth/register', { method: 'POST', body: payload, auth: false }),
     login: (payload) => request('/api/auth/login', { method: 'POST', body: payload, auth: false }),
+    google: (credential) => request('/api/auth/google', { method: 'POST', body: { credential }, auth: false }),
+    linkGoogle: (credential) => request('/api/auth/google/link', { method: 'POST', body: { credential } }),
+    unlinkGoogle: () => request('/api/auth/google/unlink', { method: 'POST', body: {} }),
     me: () => request('/api/auth/me'),
+    patchMe: (payload) => request('/api/auth/me', { method: 'PATCH', body: payload }),
     changePassword: (payload) => request('/api/auth/change-password', { method: 'POST', body: payload }),
     logout: () => request('/api/auth/logout', { method: 'POST', body: {} }),
   },
@@ -147,6 +152,9 @@ export const api = {
     get: () => request('/api/profile'),
     put: (payload) => request('/api/profile', { method: 'PUT', body: payload }),
     onboard: (payload) => request('/api/profile/onboard', { method: 'POST', body: payload }),
+    getSavedMeals: () => request('/api/profile/saved-meals'),
+    saveMeal: (payload) => request('/api/profile/saved-meals', { method: 'POST', body: payload }),
+    deleteSavedMeal: (id) => request(`/api/profile/saved-meals/${id}`, { method: 'DELETE' }),
   },
 
   training: {

@@ -6,6 +6,7 @@ const emptyProfile = {
   target_weight_kg: null, activity_level: 'moderate', goal: 'recomp', experience: 'intermediate',
   days_per_week: 4, session_minutes: 60, equipment: 'full_gym', injuries: '', diet_pref: 'omnivore',
   allergies: '', focus_areas: '', sleep_hours: 7, notes: '',
+  timezone: 'UTC', units: 'metric', favorite_exercises: [],
 };
 
 let toastId = 0;
@@ -18,6 +19,8 @@ export const useStore = create((set, get) => ({
   profile: { ...emptyProfile },
   derived: null,
   options: null,
+  authConfig: { google_configured: false, google_client_id: null },
+  savedMeals: [],
   aiStatus: null,
   view: 'dashboard',
   toasts: [],
@@ -47,13 +50,25 @@ export const useStore = create((set, get) => ({
   toggleTheme: () => {},
 
   /* -------------------------------- auth -------------------------------- */
+  async fetchAuthConfig() {
+    try {
+      const cfg = await api.auth.config();
+      set({ authConfig: cfg });
+      return cfg;
+    } catch {
+      return get().authConfig;
+    }
+  },
+
   async boot() {
     if (get().booted) return;
     set({ booted: true });
+    get().fetchAuthConfig().catch(() => {});
     try {
       const me = await api.auth.me();
       set({ token: 'session', user: me.user, profile: { ...emptyProfile, ...me.profile }, derived: { macros: me.targets, tdee: me.tdee } });
       await get().refreshAiStatus();
+      get().fetchSavedMeals().catch(() => {});
     } catch (err) {
       setToken(null);
       set({ token: null, user: null });
@@ -70,6 +85,7 @@ export const useStore = create((set, get) => ({
     set({ token: 'session', user: res.user, profile: { ...emptyProfile, ...res.profile }, view: 'dashboard' });
     await get().refreshProfile();
     await get().refreshAiStatus();
+    get().fetchSavedMeals().catch(() => {});
     get().toast(`Welcome back, ${res.user.name.split(' ')[0]}.`, 'ok');
     return res;
   },
@@ -83,10 +99,47 @@ export const useStore = create((set, get) => ({
     return res;
   },
 
+  async googleAuth(credential) {
+    const res = await api.auth.google(credential);
+    setToken(res.token);
+    set({
+      token: 'session',
+      user: res.user,
+      profile: { ...emptyProfile, ...res.profile },
+      view: res.is_new ? 'onboarding' : 'dashboard',
+    });
+    await get().refreshProfile();
+    await get().refreshAiStatus();
+    get().fetchSavedMeals().catch(() => {});
+    get().toast(res.is_new ? 'Account created with Google.' : `Welcome back, ${res.user.name.split(' ')[0]}.`, 'ok');
+    return res;
+  },
+
+  async linkGoogle(credential) {
+    const res = await api.auth.linkGoogle(credential);
+    set((s) => ({ user: { ...s.user, google_linked: true } }));
+    get().toast('Google identity successfully linked.', 'ok');
+    return res;
+  },
+
+  async unlinkGoogle() {
+    const res = await api.auth.unlinkGoogle();
+    set((s) => ({ user: { ...s.user, google_linked: false } }));
+    get().toast('Google identity unlinked.', 'ok');
+    return res;
+  },
+
+  async updateName(name) {
+    const res = await api.auth.patchMe({ name });
+    set((s) => ({ user: { ...s.user, name: res.user.name } }));
+    get().toast('Name updated.', 'ok');
+    return res;
+  },
+
   async logout() {
     try { await api.auth.logout(); } catch { /* clear local state even if offline */ }
     setToken(null);
-    set({ token: null, user: null, profile: { ...emptyProfile }, derived: null, view: 'dashboard' });
+    set({ token: null, user: null, profile: { ...emptyProfile }, derived: null, savedMeals: [], view: 'dashboard' });
     get().toast('Signed out.', 'info', 2200);
   },
 
@@ -113,6 +166,37 @@ export const useStore = create((set, get) => ({
     }));
     if (!silent) get().toast('Profile saved.', 'ok', 2400);
     return res;
+  },
+
+  async toggleFavoriteExercise(exerciseId) {
+    const current = get().profile.favorite_exercises || [];
+    const exists = current.includes(exerciseId);
+    const updated = exists ? current.filter((id) => id !== exerciseId) : [...current, exerciseId];
+    await get().saveProfile({ favorite_exercises: updated }, { silent: true });
+    get().toast(exists ? 'Removed from favorites' : 'Added to favorites', 'info', 1800);
+  },
+
+  async fetchSavedMeals() {
+    try {
+      const meals = await api.profile.getSavedMeals();
+      set({ savedMeals: meals || [] });
+      return meals;
+    } catch {
+      return [];
+    }
+  },
+
+  async saveMealPreset(payload) {
+    const created = await api.profile.saveMeal(payload);
+    set((s) => ({ savedMeals: [created, ...s.savedMeals] }));
+    get().toast(`Saved meal "${created.name}"`, 'ok');
+    return created;
+  },
+
+  async deleteSavedMeal(id) {
+    await api.profile.deleteSavedMeal(id);
+    set((s) => ({ savedMeals: s.savedMeals.filter((m) => m.id !== id) }));
+    get().toast('Saved meal removed', 'info');
   },
 
   async onboard(payload) {

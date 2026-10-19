@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { get, run } from '../db.js';
+import { get, all, run } from '../db.js';
 import { auth, touchProfile } from '../middleware/auth.js';
+import { ApiError } from '../middleware/errors.js';
 import {
   macroTargets, tdee, bmr, bmi, calorieTarget, weeklyRate, ageFrom, clamp, round, GOALS, ACTIVITY_FACTORS,
 } from '../services/nutrition.js';
@@ -27,13 +28,34 @@ const FIELDS = {
   focus_areas: (v) => String(v || '').slice(0, 300),
   sleep_hours: (v) => clamp(Number(v) || 7, 3, 12),
   notes: (v) => String(v || '').slice(0, 1000),
+  timezone: (v) => typeof v === 'string' && v.trim() ? v.trim().slice(0, 60) : undefined,
+  units: (v) => ['metric', 'imperial'].includes(v) ? v : undefined,
+  favorite_exercises: (v) => {
+    if (Array.isArray(v)) return JSON.stringify(v.slice(0, 50).map(String));
+    if (typeof v === 'string') {
+      try {
+        const parsed = JSON.parse(v);
+        if (Array.isArray(parsed)) return JSON.stringify(parsed.slice(0, 50).map(String));
+      } catch {
+        return '[]';
+      }
+    }
+    return undefined;
+  },
 };
 
 router.get('/', (req, res) => {
   const profile = get('SELECT * FROM profiles WHERE user_id = ?', req.user.id) || {};
   const p = { ...profile, age: ageFrom(profile.birth_date) };
+  let favExercises = [];
+  try {
+    favExercises = JSON.parse(profile.favorite_exercises || '[]');
+  } catch {
+    favExercises = [];
+  }
+
   res.json({
-    profile,
+    profile: { ...profile, favorite_exercises: favExercises },
     derived: {
       age: p.age,
       bmr: p.weight_kg ? round(bmr(p)) : null,
@@ -50,6 +72,7 @@ router.get('/', (req, res) => {
       experience: ['beginner', 'intermediate', 'advanced'],
       equipment: ['full_gym', 'barbell_and_dumbbell', 'dumbbell_only', 'home_bodyweight', 'machines_cables'],
       diet_prefs: ['omnivore', 'vegetarian', 'vegan', 'pescatarian'],
+      units: ['metric', 'imperial'],
     },
   });
 });
@@ -105,6 +128,48 @@ router.post('/onboard', (req, res) => {
   }
   const profile = get('SELECT * FROM profiles WHERE user_id = ?', req.user.id);
   res.json({ ok: true, profile, derived: { macros: macroTargets(profile), tdee: tdee(profile) } });
+});
+
+/* -------------------------- Saved Meals & Presets ------------------------- */
+
+router.get('/saved-meals', (req, res) => {
+  const rows = all('SELECT * FROM saved_meals WHERE user_id = ? ORDER BY id DESC', req.user.id);
+  const parsed = rows.map((r) => {
+    let items = [];
+    try { items = JSON.parse(r.items || '[]'); } catch { items = []; }
+    return { ...r, items };
+  });
+  res.json(parsed);
+});
+
+router.post('/saved-meals', (req, res) => {
+  const { name, items, calories, protein_g, carbs_g, fat_g } = req.body || {};
+  const mealName = String(name || '').trim().slice(0, 80);
+  if (!mealName) throw new ApiError(400, 'Meal name is required.');
+
+  const itemsArr = Array.isArray(items) ? items.slice(0, 30) : [];
+  const { lastInsertRowid } = run(
+    'INSERT INTO saved_meals (user_id, name, items, calories, protein_g, carbs_g, fat_g) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    req.user.id,
+    mealName,
+    JSON.stringify(itemsArr),
+    Number(calories) || 0,
+    Number(protein_g) || 0,
+    Number(carbs_g) || 0,
+    Number(fat_g) || 0
+  );
+
+  const created = get('SELECT * FROM saved_meals WHERE id = ?', Number(lastInsertRowid));
+  res.status(201).json({ ...created, items: itemsArr });
+});
+
+router.delete('/saved-meals/:id', (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) throw new ApiError(400, 'Invalid saved meal ID.');
+  const existing = get('SELECT id FROM saved_meals WHERE id = ? AND user_id = ?', id, req.user.id);
+  if (!existing) throw new ApiError(404, 'Saved meal not found.');
+  run('DELETE FROM saved_meals WHERE id = ? AND user_id = ?', id, req.user.id);
+  res.json({ ok: true });
 });
 
 export default router;
