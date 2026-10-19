@@ -378,7 +378,7 @@ export default async function run() {
     };
     fill('input[placeholder="Alex"]', 'E2E New');
     fill('input[placeholder="you@example.com"]', `e2e-new-${Date.now()}@fitforge.test`);
-    fill('input[placeholder="••••••••"]', 'newpass123');
+    fill('input[placeholder="••••••••"]', 'newpassword123');
     $$('form button[type="submit"]')[0].dispatchEvent(new window.MouseEvent('click', { bubbles: true }));
 
     await waitFor(() => has('Build your baseline'), { label: 'onboarding after register' });

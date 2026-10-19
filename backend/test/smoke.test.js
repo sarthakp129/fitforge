@@ -37,6 +37,8 @@ const child = spawn(process.execPath, ['--no-warnings', join(here, '../src/index
     GROQ_ENABLED: LIVE ? 'true' : 'false',
     GROQ_TPM: process.env.GROQ_TPM || '6000',
     AI_COOLDOWN_SECONDS: '0',
+    AI_RUNTIME_TUNING: 'true',
+    ADMIN_EMAILS: 'athlete@fitforge.test',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -108,7 +110,7 @@ async function main() {
 
   await test('POST /api/auth/register creates account + empty profile', async () => {
     const r = await call('POST', '/api/auth/register', {
-      email: 'athlete@fitforge.test', name: 'Test Athlete', password: 'strongpass1',
+      email: 'athlete@fitforge.test', name: 'Test Athlete', password: 'strongpass123',
     });
     assert.equal(r.status, 201, JSON.stringify(r.body));
     assert.ok(r.body.token);
@@ -118,7 +120,7 @@ async function main() {
 
   await test('duplicate email is rejected with 409', async () => {
     const r = await call('POST', '/api/auth/register', {
-      email: 'athlete@fitforge.test', name: 'x', password: 'strongpass1',
+      email: 'athlete@fitforge.test', name: 'x', password: 'strongpass123',
     }, { noAuth: true });
     assert.equal(r.status, 409);
   });
@@ -129,7 +131,7 @@ async function main() {
   });
 
   await test('POST /api/auth/login returns a working token', async () => {
-    const r = await call('POST', '/api/auth/login', { email: 'athlete@fitforge.test', password: 'strongpass1' }, { noAuth: true });
+    const r = await call('POST', '/api/auth/login', { email: 'athlete@fitforge.test', password: 'strongpass123' }, { noAuth: true });
     assert.equal(r.status, 200);
     token = r.body.token;
     const me = await call('GET', '/api/auth/me');
@@ -566,7 +568,7 @@ async function main() {
     assert.ok(exp.body.workouts[0].sets.length >= 1);
 
     const fresh = await call('POST', '/api/auth/register', {
-      email: 'second@fitforge.test', name: 'Second', password: 'strongpass1',
+      email: 'second@fitforge.test', name: 'Second', password: 'strongpass123',
     }, { noAuth: true });
     const original = token;
     token = fresh.body.token;

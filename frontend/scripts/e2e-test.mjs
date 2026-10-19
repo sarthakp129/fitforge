@@ -31,7 +31,7 @@ const child = spawn(process.execPath, ['--no-warnings', 'src/index.js'], {
   env: {
     ...process.env,
     PORT: String(PORT), HOST: '127.0.0.1', DATA_DIR: dataDir,
-    NODE_ENV: 'test', GROQ_ENABLED: 'false', AI_COOLDOWN_SECONDS: '0',
+    NODE_ENV: 'test', ENV_FILE: '.env.does-not-exist', GROQ_API_KEY: '', GROQ_ENABLED: 'false', AI_COOLDOWN_SECONDS: '0', AI_RUNTIME_TUNING: 'true',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -75,7 +75,7 @@ const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0
 
 async function seed() {
   const email = `e2e-${Date.now()}@fitforge.test`;
-  const reg = await call('POST', '/api/auth/register', { email, name: 'Test Athlete', password: 'e2epassword' });
+  const reg = await call('POST', '/api/auth/register', { email, name: 'Test Athlete', password: 'e2epassword12' });
   const token = reg.token;
 
   await call('POST', '/api/profile/onboard', {
