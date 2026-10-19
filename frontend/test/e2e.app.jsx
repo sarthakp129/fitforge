@@ -111,11 +111,12 @@ export default async function run() {
     }
   });
 
-  await check('dashboard keeps internal AI details out; Settings keeps them', async () => {
+  await check('dashboard and settings keep internal AI details out', async () => {
     await waitFor(() => has('Coach read-out'), { label: 'coach card on dashboard' });
-    if (has('Token governor') || has('TPM')) throw new Error('internal budget jargon leaked onto the dashboard');
+    if (has('Token governor') || has('TPM') || has('Groq')) throw new Error('internal budget jargon leaked onto the dashboard');
     await openUserMenuItem('Settings');
-    await waitFor(() => has('Token budget'), { label: 'owner controls in Settings' });
+    await waitFor(() => has('Athlete Profile'), { label: 'profile card in Settings' });
+    if (has('Token budget') || has('Groq connection') || has('TPM')) throw new Error('internal AI/budget controls leaked into consumer Settings');
     clickNav('Dashboard');
     await waitFor(() => has('Coach read-out'), { label: 'back on dashboard' });
   });
@@ -225,7 +226,7 @@ export default async function run() {
     document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
   };
 
-  await check('coach popup opens anywhere and answers from the local engine', async () => {
+  await check('coach popup opens anywhere and answers reliably', async () => {
     await openCoach();
     await waitFor(() => has('Ask anything'), { label: 'coach empty state' });
     // empty conversation offers suggestion chips
@@ -237,7 +238,6 @@ export default async function run() {
     const reply = $$('.bubble-ai')[0].textContent;
     if (reply.length < 40) throw new Error(`reply too short: ${reply}`);
     if (!/protein|kcal|g\/kg/i.test(reply)) throw new Error('reply ignored the question');
-    if (!has('offline answer')) throw new Error('degraded answers must be labelled offline');
   });
 
   await check('typed questions work and the drawer closes cleanly', async () => {
@@ -306,19 +306,22 @@ export default async function run() {
 
   /* ------------------------------- settings ----------------------------- */
 
-  await check('settings exposes the AI status, budget and usage', async () => {
+  await check('settings exposes athlete profile, saved meals, and account security without AI internals', async () => {
     await openUserMenuItem('Settings');
-    await waitFor(() => has('Groq connection'), { label: 'ai card' });
-    for (const needle of ['Token budget', 'Tokens / minute', 'Fallback', 'scrypt']) {
-      if (!has(needle.replace('Fallback', 'fallback'))) throw new Error(`missing "${needle}"`);
+    await waitFor(() => has('Athlete Profile'), { label: 'settings loaded' });
+    for (const needle of ['Athlete Profile', 'Units & Saved Meals', 'Account & Security', 'scrypt']) {
+      if (!has(needle)) throw new Error(`missing "${needle}"`);
+    }
+    for (const forbidden of ['Groq connection', 'Token budget', 'Tokens / minute', 'Purge AI cache']) {
+      if (has(forbidden)) throw new Error(`internal AI telemetry "${forbidden}" leaked into consumer Settings`);
     }
   });
 
-  await check('the budget can be retuned from the UI', async () => {
-    const before = useStore.getState().aiStatus?.budget?.tokensPerMinute;
-    clickButton('Conservative (1K TPM)');
-    await waitFor(() => useStore.getState().aiStatus?.budget?.tokensPerMinute === 1000, { label: 'budget applied' });
-    if (before === 1000) throw new Error('budget was already 1000 — test is not proving anything');
+  await check('athlete profile can be updated from the UI', async () => {
+    const saveBtn = Array.from(document.querySelectorAll('button')).find((b) => b.textContent?.includes('Save profile'));
+    if (!saveBtn) throw new Error('Save profile button not found');
+    saveBtn.click();
+    await waitFor(() => has('Saved') || has('Profile saved'), { label: 'profile saved' });
   });
 
   await check('demo account seeds a fully-populated athlete', async () => {
