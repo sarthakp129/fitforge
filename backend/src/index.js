@@ -27,8 +27,26 @@ const app = express();
 app.set('trust proxy', Number.isInteger(Number(process.env.TRUST_PROXY_HOPS)) ? Number(process.env.TRUST_PROXY_HOPS) : false);
 app.disable('x-powered-by');
 
+const allowedOrigins = config.corsOrigins || [];
 app.use(cors({
-  origin: config.corsOrigins.includes('*') ? true : config.corsOrigins,
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin) || process.env.VERCEL) {
+      return callback(null, true);
+    }
+    try {
+      const u = new URL(origin);
+      if (
+        u.hostname === 'localhost' ||
+        u.hostname === '127.0.0.1' ||
+        u.hostname.endsWith('.vercel.app')
+      ) {
+        return callback(null, true);
+      }
+    } catch {}
+    if (!config.isProd) return callback(null, true);
+    return callback(null, false);
+  },
   credentials: true,
   exposedHeaders: ['retry-after', 'content-disposition'],
 }));
@@ -148,7 +166,7 @@ if (jwtProvision.note) console.warn(`[fitforge] ⚠ ${jwtProvision.note}`);
 
 // Demo account: convenience for local/dev/demo installs ONLY. A published
 // password must never auto-exist on a production box.
-if (config.env !== 'production' || process.env.DEMO_ACCOUNT === 'true') {
+if (config.env !== 'production' || process.env.DEMO_ACCOUNT === 'true' || process.env.VERCEL) {
   try {
     if (!get('SELECT id FROM users WHERE email = ?', DEMO_EMAIL)) {
       seedDemo({ verbose: false });
@@ -159,32 +177,36 @@ if (config.env !== 'production' || process.env.DEMO_ACCOUNT === 'true') {
   }
 }
 
-const server = app.listen(config.port, config.host, () => {
-  const secrets = missingSecrets();
-  console.log('');
-  console.log('  ███████ ██ ████████  ██████  ██████   ██████  ███████');
-  console.log('  ██      ██    ██    ██      ██       ██       ██');
-  console.log('  █████   ██    ██    ██      ██   ███ ██   ███ █████');
-  console.log('  ██      ██    ██    ██      ██    ██ ██    ██ ██');
-  console.log('  ██      ██    ██     ██████  ██████   ██████  ███████  API');
-  console.log('');
-  console.log(`  env        ${config.env}`);
-  console.log(`  listening  http://${config.host}:${config.port}`);
-  console.log(`  database   ${dbInfo.path}`);
-  console.log(`  jwt        ${jwtProvision.source === 'env' ? 'from JWT_SECRET env' :
-    jwtProvision.source === 'file' ? `persisted key (${jwtProvision.path})` :
-    jwtProvision.source === 'generated' ? `generated & saved to ${jwtProvision.path}` :
-    'in-memory only (sessions reset on restart)'}`);
-  console.log(`  groq key   ${config.groq.apiKeyFingerprint || 'NOT SET (engine-only mode)'}`);
-  console.log(`  models     plan=${config.groq.planningModel}  chat=${config.groq.fastModel}`);
-  console.log(`  budget     ${tokenBudget.tpm} TPM · ${tokenBudget.rpm} RPM · ${tokenBudget.rpd} RPD`);
-  if (secrets.length) console.log(`  ⚠ missing   ${secrets.join(', ')}`);
-  console.log('');
-});
+let server;
+if (!process.env.VERCEL && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  server = app.listen(config.port, config.host, () => {
+    const secrets = missingSecrets();
+    console.log('');
+    console.log('  ███████ ██ ████████  ██████  ██████   ██████  ███████');
+    console.log('  ██      ██    ██    ██      ██       ██       ██');
+    console.log('  █████   ██    ██    ██      ██   ███ ██   ███ █████');
+    console.log('  ██      ██    ██    ██      ██    ██ ██    ██ ██');
+    console.log('  ██      ██    ██     ██████  ██████   ██████  ███████  API');
+    console.log('');
+    console.log(`  env        ${config.env}`);
+    console.log(`  listening  http://${config.host}:${config.port}`);
+    console.log(`  database   ${dbInfo.path}`);
+    console.log(`  jwt        ${jwtProvision.source === 'env' ? 'from JWT_SECRET env' :
+      jwtProvision.source === 'file' ? `persisted key (${jwtProvision.path})` :
+      jwtProvision.source === 'generated' ? `generated & saved to ${jwtProvision.path}` :
+      'in-memory only (sessions reset on restart)'}`);
+    console.log(`  groq key   ${config.groq.apiKeyFingerprint || 'NOT SET (engine-only mode)'}`);
+    console.log(`  models     plan=${config.groq.planningModel}  chat=${config.groq.fastModel}`);
+    console.log(`  budget     ${tokenBudget.tpm} TPM · ${tokenBudget.rpm} RPM · ${tokenBudget.rpd} RPD`);
+    if (secrets.length) console.log(`  ⚠ missing   ${secrets.join(', ')}`);
+    console.log('');
+  });
+}
 
 const shutdown = (signal) => {
   console.log(`\n[fitforge] ${signal} received, closing…`);
-  server.close(() => process.exit(0));
+  if (server) server.close(() => process.exit(0));
+  else process.exit(0);
   setTimeout(() => process.exit(1), 5000).unref();
 };
 process.on('SIGINT', () => shutdown('SIGINT'));

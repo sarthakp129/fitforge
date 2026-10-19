@@ -6,6 +6,7 @@ import { ApiError } from '../middleware/errors.js';
 import { macroTargets, tdee } from '../services/nutrition.js';
 import { verifyGoogleToken, isGoogleConfigured } from '../services/googleAuth.js';
 import config from '../config.js';
+import { DEMO_EMAIL } from '../../scripts/seed.js';
 
 const router = Router();
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -67,10 +68,36 @@ router.post('/register', rateLimit({ windowMs: 60_000, max: 8 }), async (req, re
   });
 });
 
-router.post('/login', rateLimit({ windowMs: 15 * 60_000, max: 8 }), async (req, res) => {
+router.post('/demo', async (req, res) => {
+  let user = get('SELECT * FROM users WHERE email = ?', DEMO_EMAIL);
+  if (!user) {
+    try {
+      const { seedDemo } = await import('../../scripts/seed.js');
+      seedDemo({ verbose: false });
+      user = get('SELECT * FROM users WHERE email = ?', DEMO_EMAIL);
+    } catch (err) {
+      console.warn('[fitforge] demo on-demand seed failed:', err.message);
+    }
+  }
+  if (!user) throw new ApiError(500, 'Could not initialize demo account.');
+  res.json({
+    token: issueSession(res, user),
+    user: publicUser(user),
+    profile: get('SELECT * FROM profiles WHERE user_id = ?', user.id),
+  });
+});
+
+router.post('/login', rateLimit({ windowMs: 15 * 60_000, max: 20 }), async (req, res) => {
   const { email, password } = req.body || {};
   const mail = String(email || '').trim().toLowerCase();
-  const user = get('SELECT * FROM users WHERE email = ?', mail);
+  let user = get('SELECT * FROM users WHERE email = ?', mail);
+  if (!user && mail === DEMO_EMAIL) {
+    try {
+      const { seedDemo } = await import('../../scripts/seed.js');
+      seedDemo({ verbose: false });
+      user = get('SELECT * FROM users WHERE email = ?', mail);
+    } catch {}
+  }
   if (!user || !await verifyPassword(password, user.password_hash)) {
     throw new ApiError(401, 'Incorrect email or password.');
   }
