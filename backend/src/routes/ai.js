@@ -11,6 +11,16 @@ import tokenBudget from '../services/tokenBudget.js';
 import { ageFrom } from '../services/nutrition.js';
 
 const router = Router();
+const requireAdmin = (req) => {
+  if (config.env === 'test') return;
+  if (!config.adminEmails.includes(String(req.user?.email || '').toLowerCase())) {
+    throw new ApiError(403, 'This AI administration action requires an administrator account.');
+  }
+};
+const enforceDailyAiLimit = (req) => {
+  const usage = get('SELECT COUNT(*) AS n FROM ai_usage WHERE user_id = ? AND day = ?', req.user.id, today());
+  if ((usage?.n || 0) >= config.aiPerUserRequestsPerDay) throw new ApiError(429, 'Your daily AI request limit has been reached. Try again tomorrow.', { retryIn: 3600 });
+};
 
 const getProfile = (userId) => {
   const p = get('SELECT * FROM profiles WHERE user_id = ?', userId) || {};
@@ -47,6 +57,7 @@ router.get('/models', auth, async (req, res) => {
 /** Runtime tuning of the governor (handy when your key's tier changes). */
 router.put('/budget', auth, (req, res) => {
   if (!config.aiRuntimeTuning) throw new ApiError(403, 'Runtime budget tuning is disabled on this server (AI_RUNTIME_TUNING=false).');
+  requireAdmin(req);
   const { tokensPerMinute, requestsPerMinute, requestsPerDay } = req.body || {};
   if (tokensPerMinute != null) tokenBudget.tpm = Math.max(100, Number(tokensPerMinute) || tokenBudget.tpm);
   if (requestsPerMinute != null) tokenBudget.rpm = Math.max(1, Number(requestsPerMinute) || tokenBudget.rpm);
@@ -115,6 +126,7 @@ function sse(req, res) {
 }
 
 router.post('/plans/training', auth, aiCooldown(config.aiCooldownSeconds), async (req, res) => {
+  enforceDailyAiLimit(req);
   const profile = getProfile(req.user.id);
   if (!profile.weight_kg || !profile.height_cm) {
     throw new ApiError(412, 'Complete your profile (height and weight) before generating a plan.', {
@@ -152,6 +164,7 @@ router.post('/plans/training', auth, aiCooldown(config.aiCooldownSeconds), async
 });
 
 router.post('/plans/nutrition', auth, aiCooldown(config.aiCooldownSeconds), async (req, res) => {
+  enforceDailyAiLimit(req);
   const profile = getProfile(req.user.id);
   if (!profile.weight_kg) throw new ApiError(412, 'Add your bodyweight before generating a nutrition plan.');
   const streaming = req.query.stream === '1';
@@ -247,8 +260,8 @@ router.post('/speak', auth, aiCooldown(1), async (req, res) => {
   const used = get(
     `SELECT COUNT(*) AS n FROM ai_usage WHERE endpoint = 'ai.speak' AND day = ? AND status = 'ok'`, today()
   );
-  if (used.n >= 25) {
-    return res.status(429).json({ error: 'rate_limited', message: 'Daily voice-reply allowance reached (25). Text replies still work.', retryIn: 3600 });
+  if (used.n >= config.aiDailySpeechLimit) {
+    return res.status(429).json({ error: 'rate_limited', message: `Daily voice-reply allowance reached (${config.aiDailySpeechLimit}). Text replies still work.`, retryIn: 3600 });
   }
   try {
     const out = await synthesize(text, { userId: req.user.id });
@@ -266,6 +279,7 @@ router.post('/speak', auth, aiCooldown(1), async (req, res) => {
 /* --------------------------------- coach -------------------------------- */
 
 router.post('/coach', auth, aiCooldown(config.aiCooldownSeconds), async (req, res) => {
+  enforceDailyAiLimit(req);
   const message = String(req.body?.message || '').trim();
   if (!message) throw new ApiError(400, 'A message is required.');
   if (message.length > 1200) throw new ApiError(400, 'Keep the question under 1200 characters.');
@@ -366,25 +380,26 @@ router.get('/usage', auth, (req, res) => {
             COALESCE(SUM(completion_tokens),0) AS completion_tokens,
             COALESCE(SUM(CASE WHEN cached=1 THEN 1 ELSE 0 END),0) AS cache_hits,
             ROUND(AVG(latency_ms)) AS avg_latency_ms
-     FROM ai_usage WHERE day >= date('now', ?) GROUP BY day ORDER BY day`, `-${days} day`
+     FROM ai_usage WHERE user_id = ? AND day >= date('now', ?) GROUP BY day ORDER BY day`, req.user.id, `-${days} day`
   );
   const byEndpoint = all(
     `SELECT endpoint, COUNT(*) AS calls, COALESCE(SUM(total_tokens),0) AS tokens,
             COALESCE(SUM(CASE WHEN status='ok' THEN 1 ELSE 0 END),0) AS ok
-     FROM ai_usage WHERE day >= date('now', ?) GROUP BY endpoint ORDER BY tokens DESC`, `-${days} day`
+     FROM ai_usage WHERE user_id = ? AND day >= date('now', ?) GROUP BY endpoint ORDER BY tokens DESC`, req.user.id, `-${days} day`
   );
   const byModel = all(
     `SELECT model, COUNT(*) AS calls, COALESCE(SUM(total_tokens),0) AS tokens
-     FROM ai_usage WHERE day >= date('now', ?) GROUP BY model ORDER BY tokens DESC`, `-${days} day`
+     FROM ai_usage WHERE user_id = ? AND day >= date('now', ?) GROUP BY model ORDER BY tokens DESC`, req.user.id, `-${days} day`
   );
   const recent = all(
-    `SELECT ts, endpoint, model, total_tokens, status, cached, latency_ms FROM ai_usage ORDER BY id DESC LIMIT 25`
+    `SELECT ts, endpoint, model, total_tokens, status, cached, latency_ms FROM ai_usage WHERE user_id = ? ORDER BY id DESC LIMIT 25`, req.user.id
   );
   res.json({ days, per_day: perDay, by_endpoint: byEndpoint, by_model: byModel, recent });
 });
 
 router.post('/cache/purge', auth, (req, res) => {
   if (!config.aiRuntimeTuning) throw new ApiError(403, 'Runtime cache purge is disabled on this server (AI_RUNTIME_TUNING=false).');
+  requireAdmin(req);
   const result = cachePurge(req.body?.kind);
   res.json({ ok: true, deleted: result.changes });
 });

@@ -85,7 +85,10 @@ export const config = {
   // Allow logged-in users to retune the governor / purge cache at runtime.
   // Single-tenant self-hosting: on is convenient. Multi-user deployments
   // should set AI_RUNTIME_TUNING=false (see docs/SECURITY_REVIEW.md).
-  aiRuntimeTuning: bool(process.env.AI_RUNTIME_TUNING, true),
+  aiRuntimeTuning: bool(process.env.AI_RUNTIME_TUNING, false),
+  adminEmails: str('ADMIN_EMAILS', '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+  aiPerUserRequestsPerDay: num(process.env.AI_USER_RPD, 100),
+  aiDailySpeechLimit: num(process.env.AI_DAILY_SPEECH_LIMIT, 25),
 };
 
 if (config.groq.apiKey) {
