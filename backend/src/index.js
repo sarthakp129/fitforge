@@ -39,8 +39,8 @@ app.use((req, res, next) => {
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'SAMEORIGIN',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-    'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.groq.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
+    'Permissions-Policy': 'camera=(), microphone=(self), geolocation=()',
+    'Content-Security-Policy': "default-src 'self'; connect-src 'self' https://api.groq.com https://accounts.google.com; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self' https://accounts.google.com; frame-src https://accounts.google.com; base-uri 'self'; frame-ancestors 'self'; form-action 'self'",
   });
   next();
 });
