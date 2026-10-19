@@ -14,6 +14,28 @@ import { SelectMenu } from './Controls.jsx';
 
 /* ============================== rest timer ================================ */
 
+function playChime() {
+  try {
+    if (typeof window === 'undefined') return;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.45);
+  } catch {
+    /* audio context blocked or unavailable */
+  }
+}
+
 function useRestTimer(onEnd) {
   const [remaining, setRemaining] = useState(0);
   const [total, setTotal] = useState(0);
@@ -29,6 +51,7 @@ function useRestTimer(onEnd) {
       if (left <= 0) {
         clearInterval(t);
         try { navigator.vibrate?.(220); } catch { /* not supported */ }
+        playChime();
         endRef.current?.();
       }
     }, 250);
@@ -44,6 +67,24 @@ function useRestTimer(onEnd) {
   const stop = () => { setRemaining(0); setTotal(0); };
   const nudge = (delta) => { if (remaining > 0) { ref.current += delta * 1000; setRemaining((r) => Math.max(0, r + delta)); } };
   return { remaining, total, start, stop, nudge };
+}
+
+function buildLastPerformanceMap(workouts = []) {
+  const map = {};
+  for (const w of workouts) {
+    for (const s of (w.sets || [])) {
+      if (!s.exercise_id || s.is_warmup) continue;
+      if (!map[s.exercise_id] || new Date(w.date) > new Date(map[s.exercise_id].date)) {
+        map[s.exercise_id] = {
+          weight_kg: s.weight_kg,
+          reps: s.reps,
+          rpe: s.rpe,
+          date: w.date,
+        };
+      }
+    }
+  }
+  return map;
 }
 
 function RestTimerCard({ timer }) {
@@ -74,30 +115,95 @@ function RestTimerCard({ timer }) {
   );
 }
 
+/* ======================== exercise substitute modal ======================= */
+
+function SubstituteModal({ open, exercise, onClose, onSelect }) {
+  const [loading, setLoading] = useState(false);
+  const [data, setData] = useState(null);
+  const { handleError } = useStore();
+
+  useEffect(() => {
+    if (!open || !exercise) {
+      setData(null);
+      return;
+    }
+    setLoading(true);
+    api.training.substitutes(exercise.exercise_id || exercise.id)
+      .then(setData)
+      .catch((e) => handleError(e, 'Could not find substitutes.'))
+      .finally(() => setLoading(false));
+  }, [open, exercise, handleError]);
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Biomechanical substitutes"
+      subtitle={exercise ? `Alternatives for ${exercise.exercise_name || exercise.name}` : ''}
+      wide
+    >
+      <div className="stack gap-12">
+        {loading && <Skeleton h={100} />}
+        {data && (
+          <div className="chip chip-teal small" style={{ alignSelf: 'flex-start' }}>
+            Matching movement: <b>{titleCase(data.pattern || 'movement')}</b> · Focus: <b>{data.primary_muscle || 'muscle'}</b>
+          </div>
+        )}
+        <div className="stack gap-8" style={{ maxHeight: '48vh', overflowY: 'auto' }}>
+          {(data?.substitutes || []).map((sub) => (
+            <div key={sub.id} className="ex-row row-between" style={{ alignItems: 'center' }}>
+              <div className="flex-1">
+                <div className="ex-name">{sub.name}</div>
+                <div className="ex-meta">
+                  <span>{sub.muscles?.join(' · ')}</span>
+                  <span>{titleCase(sub.equipment)}</span>
+                  {sub.compound ? <Chip tone="ember" className="tiny">Compound</Chip> : null}
+                  {sub.is_custom ? <Chip tone="amber" className="tiny">Custom</Chip> : null}
+                </div>
+              </div>
+              <Button variant="ember" size="sm" onClick={() => onSelect(sub)}>
+                <Icon name="check" size={13} /> Select
+              </Button>
+            </div>
+          ))}
+          {data && !data.substitutes?.length && (
+            <Empty>No direct biomechanical alternatives found in the library.</Empty>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 /* ============================ session logger ============================== */
 
-function SessionLogger({ session, onClose, onSaved }) {
+function SessionLogger({ session, history = [], onClose, onSaved }) {
   const { handleError, toast } = useStore();
   const timer = useRestTimer(() => toast('Rest done — next set.', 'ok', 2600));
   const startedAt = useRef(Date.now());
+  const historyMap = useMemo(() => buildLastPerformanceMap(history), [history]);
   const [name, setName] = useState(session?.title || 'Workout');
   const [notes, setNotes] = useState('');
   const [rpe, setRpe] = useState('');
+  const [subRowIdx, setSubRowIdx] = useState(null);
   const [rows, setRows] = useState(() =>
-    (session?.exercises || []).map((ex) => ({
-      exercise_id: ex.exercise_id,
-      exercise_name: ex.name,
-      rest_s: ex.rest_s || 90,
-      target_reps: ex.reps || '8-12',
-      last: session.last_performance?.[ex.exercise_id] || null,
-      sets: Array.from({ length: ex.sets || 3 }, (_, i) => ({
-        set_number: i + 1,
-        reps: session.last_performance?.[ex.exercise_id]?.reps ?? repMid(ex.reps) ?? 8,
-        weight_kg: session.last_performance?.[ex.exercise_id]?.weight_kg ?? 0,
-        rpe: '',
-        done: false,
-      })),
-    }))
+    (session?.exercises || []).map((ex) => {
+      const last = session?.last_performance?.[ex.exercise_id] || historyMap[ex.exercise_id] || null;
+      return {
+        exercise_id: ex.exercise_id,
+        exercise_name: ex.name,
+        rest_s: ex.rest_s || 90,
+        target_reps: ex.reps || '8-12',
+        last,
+        sets: Array.from({ length: ex.sets || 3 }, (_, i) => ({
+          set_number: i + 1,
+          reps: last?.reps ?? repMid(ex.reps) ?? 8,
+          weight_kg: last?.weight_kg ?? 0,
+          rpe: '',
+          done: false,
+        })),
+      };
+    })
   );
   const [pickerOpen, setPickerOpen] = useState(false);
   const [burst, setBurst] = useState(null);
@@ -141,11 +247,40 @@ function SessionLogger({ session, onClose, onSaved }) {
   const removeRow = (ri) => setRows((rs) => rs.filter((_, i) => i !== ri));
 
   const addExercise = (ex) => {
+    const last = historyMap[ex.id] || null;
     setRows((rs) => [...rs, {
-      exercise_id: ex.id, exercise_name: ex.name, rest_s: 90, target_reps: '8-12', last: null,
-      sets: [{ set_number: 1, reps: 10, weight_kg: 0, rpe: '', done: false }],
+      exercise_id: ex.id,
+      exercise_name: ex.name,
+      rest_s: 90,
+      target_reps: '8-12',
+      last,
+      sets: [{
+        set_number: 1,
+        reps: last?.reps ?? 10,
+        weight_kg: last?.weight_kg ?? 0,
+        rpe: '',
+        done: false,
+      }],
     }]);
     setPickerOpen(false);
+  };
+
+  const swapRowExercise = (newEx) => {
+    if (subRowIdx === null) return;
+    const last = historyMap[newEx.id] || null;
+    setRows((rs) => rs.map((r, i) => i !== subRowIdx ? r : {
+      ...r,
+      exercise_id: newEx.id,
+      exercise_name: newEx.name,
+      last,
+      sets: r.sets.map((s) => ({
+        ...s,
+        weight_kg: last?.weight_kg ?? s.weight_kg,
+        reps: last?.reps ?? s.reps,
+      })),
+    }));
+    toast(`Swapped to ${newEx.name}.`, 'ok');
+    setSubRowIdx(null);
   };
 
   const save = async () => {
@@ -208,6 +343,7 @@ function SessionLogger({ session, onClose, onSaved }) {
               </div>
             </div>
             <div className="row gap-6">
+              <Button variant="ghost" size="sm" onClick={() => setSubRowIdx(ri)} aria-label="Swap exercise" title="Find biomechanical substitutes"><Icon name="refresh" size={13} /> Swap</Button>
               <Field label="" className="gap-4">
                 <Input className="input-sm input-num" type="number" min="0" max="600" step="5" value={row.rest_s}
                   onChange={(e) => setRows((rs) => rs.map((r, i) => i === ri ? { ...r, rest_s: Number(e.target.value) } : r))}
@@ -273,6 +409,12 @@ function SessionLogger({ session, onClose, onSaved }) {
 
       <RestTimerCard timer={timer} />
       <ExercisePicker open={pickerOpen} onClose={() => setPickerOpen(false)} onPick={addExercise} />
+      <SubstituteModal
+        open={subRowIdx !== null}
+        exercise={subRowIdx !== null ? rows[subRowIdx] : null}
+        onClose={() => setSubRowIdx(null)}
+        onSelect={swapRowExercise}
+      />
     </div>
   );
 }
@@ -293,52 +435,206 @@ function repMid(range) {
 /* =========================== exercise picker ============================ */
 
 function ExercisePicker({ open, onClose, onPick }) {
+  const [modalTab, setModalTab] = useState('library');
   const [q, setQ] = useState('');
   const [category, setCategory] = useState('');
   const [equipment, setEquipment] = useState('');
   const [data, setData] = useState(null);
-  const { handleError } = useStore();
+  const [customForm, setCustomForm] = useState({
+    name: '',
+    primary_muscle: 'chest',
+    pattern: 'horizontal_push',
+    equipment: 'barbell',
+    secondary_muscles: '',
+    compound: true,
+  });
+  const [savingCustom, setSavingCustom] = useState(false);
+  const { handleError, toast } = useStore();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setModalTab('library');
+      return;
+    }
     const t = setTimeout(() => {
       api.training.exercises({ q: q || undefined, category: category || undefined, equipment: equipment || undefined })
         .then(setData)
         .catch((e) => handleError(e, 'Could not load the exercise library.'));
     }, 180);
     return () => clearTimeout(t);
-  }, [open, q, category, equipment]);
+  }, [open, q, category, equipment, handleError]);
+
+  const saveCustom = async () => {
+    if (!customForm.name.trim()) return toast('Please enter an exercise name.', 'warn');
+    setSavingCustom(true);
+    try {
+      const payload = {
+        name: customForm.name.trim(),
+        primary_muscle: customForm.primary_muscle,
+        pattern: customForm.pattern,
+        equipment: customForm.equipment,
+        secondary_muscles: customForm.secondary_muscles
+          ? customForm.secondary_muscles.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean)
+          : [],
+        compound: Boolean(customForm.compound),
+      };
+      const created = await api.training.createCustomExercise(payload);
+      toast(`Created custom exercise “${payload.name}”.`, 'ok');
+      setCustomForm({
+        name: '',
+        primary_muscle: 'chest',
+        pattern: 'horizontal_push',
+        equipment: 'barbell',
+        secondary_muscles: '',
+        compound: true,
+      });
+      setModalTab('library');
+      onPick(created.exercise);
+    } catch (err) {
+      handleError(err, 'Failed to create custom exercise.');
+    } finally {
+      setSavingCustom(false);
+    }
+    return undefined;
+  };
 
   return (
-    <Modal open={open} onClose={onClose} title="Exercise library" subtitle={data ? `${data.count} matches` : 'Searching…'} wide>
-      <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
-        <Input placeholder="Search squats, press, curl…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" style={{ minWidth: 180 }} />
-        <SelectMenu width={150} value={category} onChange={setCategory} options={[
-          { value: '', label: 'All categories' },
-          ...(data?.facets?.categories || []).map((c) => ({ value: c, label: titleCase(c) })),
-        ]} />
-        <SelectMenu width={160} value={equipment} onChange={setEquipment} options={[
-          { value: '', label: 'Any equipment' },
-          ...(data?.facets?.equipment || []).map((c) => ({ value: c, label: titleCase(c) })),
-        ]} />
+    <Modal open={open} onClose={onClose} title="Exercise library" subtitle={modalTab === 'custom' ? 'Add your own custom movement' : (data ? `${data.count} matches` : 'Searching…')} wide>
+      <div className="row-between" style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+        <Segmented
+          value={modalTab}
+          onChange={setModalTab}
+          options={[
+            { value: 'library', label: 'Exercise Library' },
+            { value: 'custom', label: '+ Create Custom Exercise' },
+          ]}
+        />
       </div>
-      <div className="stack gap-8" style={{ maxHeight: '48vh', overflowY: 'auto' }}>
-        {!data && <Skeleton h={54} />}
-        {(data?.exercises || []).map((ex) => (
-          <button key={ex.id} className="ex-row" style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }} onClick={() => onPick(ex)}>
-            <div>
-              <div className="ex-name">{ex.name}</div>
-              <div className="ex-meta">
-                <span>{ex.muscles.join(' · ')}</span>
-                <span>{titleCase(ex.equipment)}</span>
-                <span>{titleCase(ex.level)}</span>
-              </div>
-            </div>
-            <Chip tone={ex.compound ? 'ember' : 'ghost'}>{ex.compound ? 'compound' : ex.pattern}</Chip>
-          </button>
-        ))}
-        {data && !data.exercises.length && <Empty>No exercises match those filters.</Empty>}
-      </div>
+
+      {modalTab === 'custom' ? (
+        <form onSubmit={(e) => { e.preventDefault(); saveCustom(); }} className="stack gap-12">
+          <Field label="Exercise name" hint="required">
+            <Input
+              value={customForm.name}
+              onChange={(e) => setCustomForm({ ...customForm, name: e.target.value })}
+              placeholder="e.g. Belt Squat, Neutral Grip DB Press"
+              required
+            />
+          </Field>
+          <div className="grid grid-3">
+            <Field label="Movement pattern">
+              <SelectMenu
+                value={customForm.pattern}
+                onChange={(val) => setCustomForm({ ...customForm, pattern: val })}
+                options={[
+                  { value: 'squat', label: 'Squat' },
+                  { value: 'hinge', label: 'Hinge' },
+                  { value: 'horizontal_push', label: 'Horizontal Push' },
+                  { value: 'horizontal_pull', label: 'Horizontal Pull' },
+                  { value: 'vertical_push', label: 'Vertical Push' },
+                  { value: 'vertical_pull', label: 'Vertical Pull' },
+                  { value: 'isolation', label: 'Isolation' },
+                  { value: 'core', label: 'Core' },
+                  { value: 'carry', label: 'Carry' },
+                ]}
+              />
+            </Field>
+            <Field label="Primary muscle">
+              <SelectMenu
+                value={customForm.primary_muscle}
+                onChange={(val) => setCustomForm({ ...customForm, primary_muscle: val })}
+                options={[
+                  { value: 'chest', label: 'Chest' },
+                  { value: 'back', label: 'Back' },
+                  { value: 'quadriceps', label: 'Quadriceps' },
+                  { value: 'hamstrings', label: 'Hamstrings' },
+                  { value: 'glutes', label: 'Glutes' },
+                  { value: 'shoulders', label: 'Shoulders' },
+                  { value: 'biceps', label: 'Biceps' },
+                  { value: 'triceps', label: 'Triceps' },
+                  { value: 'core', label: 'Core' },
+                  { value: 'calves', label: 'Calves' },
+                  { value: 'full_body', label: 'Full Body' },
+                ]}
+              />
+            </Field>
+            <Field label="Equipment">
+              <SelectMenu
+                value={customForm.equipment}
+                onChange={(val) => setCustomForm({ ...customForm, equipment: val })}
+                options={[
+                  { value: 'barbell', label: 'Barbell' },
+                  { value: 'dumbbell', label: 'Dumbbell' },
+                  { value: 'cable', label: 'Cable' },
+                  { value: 'machine', label: 'Machine' },
+                  { value: 'bodyweight', label: 'Bodyweight' },
+                  { value: 'band', label: 'Band' },
+                  { value: 'smith', label: 'Smith Machine' },
+                ]}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-2">
+            <Field label="Secondary muscles" hint="optional, comma separated">
+              <Input
+                value={customForm.secondary_muscles}
+                onChange={(e) => setCustomForm({ ...customForm, secondary_muscles: e.target.value })}
+                placeholder="e.g. triceps, shoulders"
+              />
+            </Field>
+            <Field label="Movement type">
+              <SelectMenu
+                value={customForm.compound ? 'compound' : 'isolation'}
+                onChange={(val) => setCustomForm({ ...customForm, compound: val === 'compound' })}
+                options={[
+                  { value: 'compound', label: 'Compound movement' },
+                  { value: 'isolation', label: 'Isolation movement' },
+                ]}
+              />
+            </Field>
+          </div>
+          <div className="row gap-10" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
+            <Button type="button" variant="ghost" onClick={() => setModalTab('library')}>Cancel</Button>
+            <Button type="submit" variant="ember" loading={savingCustom} disabled={savingCustom}>
+              <Icon name="check" size={15} /> Save & Add Exercise
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+            <Input placeholder="Search squats, press, curl…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" style={{ minWidth: 180 }} />
+            <SelectMenu width={150} value={category} onChange={setCategory} options={[
+              { value: '', label: 'All categories' },
+              ...(data?.facets?.categories || []).map((c) => ({ value: c, label: titleCase(c) })),
+            ]} />
+            <SelectMenu width={160} value={equipment} onChange={setEquipment} options={[
+              { value: '', label: 'Any equipment' },
+              ...(data?.facets?.equipment || []).map((c) => ({ value: c, label: titleCase(c) })),
+            ]} />
+          </div>
+          <div className="stack gap-8" style={{ maxHeight: '48vh', overflowY: 'auto' }}>
+            {!data && <Skeleton h={54} />}
+            {(data?.exercises || []).map((ex) => (
+              <button key={ex.id} className="ex-row" style={{ textAlign: 'left', cursor: 'pointer', width: '100%' }} onClick={() => onPick(ex)}>
+                <div>
+                  <div className="ex-name">
+                    {ex.name}
+                    {ex.is_custom && <Chip tone="amber" className="tiny" style={{ marginLeft: 6, fontSize: '0.65rem' }}>Custom</Chip>}
+                  </div>
+                  <div className="ex-meta">
+                    <span>{ex.muscles?.join(' · ')}</span>
+                    <span>{titleCase(ex.equipment)}</span>
+                    <span>{titleCase(ex.level || 'all')}</span>
+                  </div>
+                </div>
+                <Chip tone={ex.compound ? 'ember' : 'ghost'}>{ex.compound ? 'compound' : ex.pattern}</Chip>
+              </button>
+            ))}
+            {data && !data.exercises.length && <Empty>No exercises match those filters. Click “+ Create Custom Exercise” to add it.</Empty>}
+          </div>
+        </>
+      )}
     </Modal>
   );
 }
@@ -380,6 +676,7 @@ export default function Training() {
   const [weeks, setWeeks] = useState(4);
   const [activeDay, setActiveDay] = useState(0);
   const [session, setSession] = useState(pendingSession);
+  const [planSwapTarget, setPlanSwapTarget] = useState(null);
   const abortRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -439,6 +736,28 @@ export default function Training() {
   const startDay = (day) => {
     setSession({ ...day, last_performance: day.last_performance || {} });
     setTab('log');
+  };
+
+  const swapPlanExercise = (newEx) => {
+    if (!planSwapTarget || !plan) return;
+    const { exerciseIndex } = planSwapTarget;
+    setPlan((p) => {
+      if (!p?.schedule?.[activeDay]?.exercises) return p;
+      const updatedExercises = [...p.schedule[activeDay].exercises];
+      const cur = updatedExercises[exerciseIndex];
+      updatedExercises[exerciseIndex] = {
+        ...cur,
+        exercise_id: newEx.id,
+        name: newEx.name,
+        muscles: newEx.muscles || cur.muscles,
+        swap_reason: `Athlete swap: ${newEx.name}`,
+      };
+      const updatedSchedule = [...p.schedule];
+      updatedSchedule[activeDay] = { ...updatedSchedule[activeDay], exercises: updatedExercises };
+      return { ...p, schedule: updatedSchedule };
+    });
+    toast(`Swapped to ${newEx.name} in plan.`, 'ok');
+    setPlanSwapTarget(null);
   };
 
   const removeWorkout = async (id) => {
@@ -575,7 +894,17 @@ export default function Training() {
                                 </div>
                               )}
                             </div>
-                            <Chip tone={ex.role === 'primary' ? 'ember' : ex.role === 'conditioning' ? 'teal' : 'ghost'}>{ex.role}</Chip>
+                            <div className="row gap-6">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setPlanSwapTarget({ exerciseIndex: i, exercise: ex })}
+                                title="Swap this exercise with a biomechanical substitute"
+                              >
+                                <Icon name="refresh" size={13} /> Swap
+                              </Button>
+                              <Chip tone={ex.role === 'primary' ? 'ember' : ex.role === 'conditioning' ? 'teal' : 'ghost'}>{ex.role}</Chip>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -639,6 +968,7 @@ export default function Training() {
           session ? (
             <SessionLogger
               session={session}
+              history={history}
               onClose={() => { setSession(null); setTab('plan'); }}
               onSaved={() => { setSession(null); load(); }}
             />
@@ -719,6 +1049,12 @@ export default function Training() {
           </div>
         )}
       </div>
+      <SubstituteModal
+        open={Boolean(planSwapTarget)}
+        exercise={planSwapTarget?.exercise}
+        onClose={() => setPlanSwapTarget(null)}
+        onSelect={swapPlanExercise}
+      />
     </div>
   );
 }
