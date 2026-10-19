@@ -279,6 +279,31 @@ async function main() {
     assert.ok(eq.body.exercises.every((e) => e.equipment === 'bodyweight' && e.category === 'push'));
   });
 
+  let customExId = null;
+  await test('custom exercises lifecycle: create, list, substitute, and delete', async () => {
+    const created = await call('POST', '/api/training/custom-exercises', {
+      name: 'Custom Bulgarian Split Squat',
+      category: 'compound_dumbbell',
+      equipment: 'dumbbell',
+      muscles: ['quadriceps', 'glutes'],
+      pattern: 'lunge',
+      instructions: 'Elevate back foot and drive through front heel.',
+    });
+    assert.equal(created.status, 201);
+    assert.ok(created.body.exercise.id.startsWith('custom_ex_'));
+    customExId = created.body.exercise.id;
+
+    const list = await call('GET', '/api/training/custom-exercises');
+    assert.ok(list.body.exercises.some((e) => e.name === 'Custom Bulgarian Split Squat'));
+
+    const subs = await call('GET', '/api/training/exercises/bench_press/substitutes');
+    assert.ok(subs.body.substitutes.length > 0);
+    assert.ok(subs.body.substitutes.some((s) => /press/i.test(s.name) || /chest/i.test((s.muscles || []).join(' '))));
+
+    const del = await call('DELETE', `/api/training/custom-exercises/${customExId}`);
+    assert.equal(del.status, 200);
+  });
+
   let planId = null;
   await test('POST /api/ai/plans/training builds a complete 4-day plan', async () => {
     const r = await call('POST', '/api/ai/plans/training', { weeks: 4 });
@@ -526,6 +551,32 @@ async function main() {
   await test('unknown food without macros is a 400', async () => {
     const r = await call('POST', '/api/nutrition/log', { date: today, food_name: 'Mystery goo' });
     assert.equal(r.status, 400);
+  });
+
+  let customFoodId = null;
+  await test('custom foods lifecycle: create, search, and delete', async () => {
+    const created = await call('POST', '/api/nutrition/custom-foods', {
+      name: 'My Special Protein Shake',
+      brand: 'Home Recipe',
+      category: 'supplement',
+      serving_g: 350,
+      kcal: 320,
+      protein_g: 45,
+      carbs_g: 20,
+      fat_g: 4,
+    });
+    assert.equal(created.status, 201);
+    assert.ok(created.body.food.id.startsWith('custom_'));
+    customFoodId = created.body.food.id;
+
+    const list = await call('GET', '/api/nutrition/custom-foods');
+    assert.ok(list.body.foods.some((f) => f.name === 'My Special Protein Shake'));
+
+    const search = await call('GET', '/api/nutrition/foods?q=Special+Protein');
+    assert.ok(search.body.foods.some((f) => f.name === 'My Special Protein Shake'));
+
+    const del = await call('DELETE', `/api/nutrition/custom-foods/${customFoodId}`);
+    assert.equal(del.status, 200);
   });
 
   await test('batch logging + daily totals group by meal', async () => {

@@ -22,6 +22,28 @@ export function auth(req, res, next) {
   next();
 }
 
+/** Optional auth: attaches req.user if a valid token exists, otherwise proceeds anonymously. */
+export function optionalAuth(req, res, next) {
+  try {
+    const header = req.headers.authorization || '';
+    const cookieToken = String(req.headers.cookie || '').split(';').map((v) => v.trim())
+      .find((v) => v.startsWith('fitforge_session='))?.slice('fitforge_session='.length);
+    const token = header.startsWith('Bearer ')
+      ? header.slice(7).trim()
+      : (cookieToken || '');
+    if (!token) return next();
+    const claims = verifyToken(token);
+    if (!claims || !claims.sub) return next();
+    const user = get('SELECT id, email, name, created_at, session_version, google_id FROM users WHERE id = ?', Number(claims.sub));
+    if (user && Number(claims.sv || 0) === Number(user.session_version || 1)) {
+      req.user = user;
+    }
+  } catch {
+    /* proceed anonymously */
+  }
+  next();
+}
+
 /** Simple in-memory sliding window limiter, per key. */
 export function rateLimit({ windowMs = 60_000, max = 60, key = (req) => req.ip } = {}) {
   const hits = new Map();

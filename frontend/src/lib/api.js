@@ -165,6 +165,11 @@ export const api = {
 
   training: {
     exercises: (params = {}) => request(`/api/training/exercises${qs(params)}`),
+    exercise: (id) => request(`/api/training/exercises/${id}`),
+    substitutes: (id, params = {}) => request(`/api/training/exercises/${id}/substitutes${qs(params)}`),
+    customExercises: () => request('/api/training/custom-exercises'),
+    createCustomExercise: (payload) => request('/api/training/custom-exercises', { method: 'POST', body: payload }),
+    deleteCustomExercise: (id) => request(`/api/training/custom-exercises/${id}`, { method: 'DELETE' }),
     workouts: (params = {}) => request(`/api/training/workouts${qs(params)}`),
     workout: (id) => request(`/api/training/workouts/${id}`),
     log: (payload) => request('/api/training/workouts', { method: 'POST', body: payload }),
@@ -177,6 +182,9 @@ export const api = {
 
   nutrition: {
     foods: (params = {}) => request(`/api/nutrition/foods${qs(params)}`),
+    customFoods: () => request('/api/nutrition/custom-foods'),
+    createCustomFood: (payload) => request('/api/nutrition/custom-foods', { method: 'POST', body: payload }),
+    deleteCustomFood: (id) => request(`/api/nutrition/custom-foods/${id}`, { method: 'DELETE' }),
     log: (payload) => request('/api/nutrition/log', { method: 'POST', body: payload }),
     logBatch: (payload) => request('/api/nutrition/log-batch', { method: 'POST', body: payload }),
     daily: (date) => request(`/api/nutrition/daily?date=${date}`),

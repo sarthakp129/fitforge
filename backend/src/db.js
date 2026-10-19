@@ -188,6 +188,42 @@ CREATE TABLE IF NOT EXISTS saved_meals (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_saved_meals_user ON saved_meals(user_id);
+
+CREATE TABLE IF NOT EXISTS custom_foods (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name       TEXT NOT NULL,
+  brand      TEXT DEFAULT '',
+  category   TEXT DEFAULT 'custom',
+  serving_g  REAL NOT NULL DEFAULT 100,
+  kcal       REAL NOT NULL DEFAULT 0,
+  protein_g  REAL NOT NULL DEFAULT 0,
+  carbs_g    REAL NOT NULL DEFAULT 0,
+  fat_g      REAL NOT NULL DEFAULT 0,
+  source     TEXT DEFAULT 'custom',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_custom_foods_user ON custom_foods(user_id);
+
+CREATE TABLE IF NOT EXISTS custom_exercises (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name         TEXT NOT NULL,
+  category     TEXT DEFAULT 'isolation',
+  equipment    TEXT DEFAULT 'dumbbell',
+  muscles      TEXT NOT NULL DEFAULT '[]',
+  pattern      TEXT DEFAULT 'accessory',
+  instructions TEXT DEFAULT '',
+  created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_custom_exercises_user ON custom_exercises(user_id);
+
+CREATE TABLE IF NOT EXISTS external_food_cache (
+  query_key   TEXT PRIMARY KEY,
+  data_json   TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ext_food_cache_time ON external_food_cache(created_at);
 `;
 
 db.exec(SCHEMA);

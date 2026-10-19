@@ -1,8 +1,15 @@
 import { Router } from 'express';
 import { all, get, run, tx, today, parseJson } from '../db.js';
-import { auth } from '../middleware/auth.js';
+import { auth, optionalAuth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errors.js';
-import { EXERCISES, exerciseById } from '../services/planEngine.js';
+import {
+  searchExercises,
+  getExerciseById,
+  getExerciseSubstitutes,
+  createCustomExercise,
+  deleteCustomExercise,
+  getUserCustomExercises,
+} from '../services/exerciseService.js';
 import { clamp } from '../services/nutrition.js';
 import { validDate, queryDate } from '../lib/validate.js';
 
@@ -10,35 +17,30 @@ const router = Router();
 
 /* --------------------------- exercise library --------------------------- */
 
-router.get('/exercises', (req, res) => {
-  const q = String(req.query.q || '').toLowerCase().trim();
-  const muscle = String(req.query.muscle || '').toLowerCase().trim();
-  const category = String(req.query.category || '').toLowerCase().trim();
-  const equipment = String(req.query.equipment || '').toLowerCase().trim();
-
-  let list = EXERCISES;
-  if (category) list = list.filter((e) => e.category === category);
-  if (equipment) list = list.filter((e) => e.equipment === equipment);
-  if (muscle) list = list.filter((e) => e.muscles.some((m) => m.toLowerCase().includes(muscle)));
-  if (q) {
-    list = list.filter((e) =>
-      `${e.name} ${e.muscles.join(' ')} ${e.pattern} ${e.category} ${e.equipment}`.toLowerCase().includes(q));
-  }
-  res.json({
-    count: list.length,
-    exercises: list.slice(0, 200),
-    facets: {
-      categories: [...new Set(EXERCISES.map((e) => e.category))],
-      equipment: [...new Set(EXERCISES.map((e) => e.equipment))],
-      muscles: [...new Set(EXERCISES.flatMap((e) => e.muscles))].sort(),
-    },
+router.get('/exercises', optionalAuth, (req, res) => {
+  const result = searchExercises({
+    query: req.query.q,
+    muscle: req.query.muscle,
+    category: req.query.category,
+    equipment: req.query.equipment,
+    userId: req.user?.id || null,
+    limit: Math.min(200, Math.max(1, Number(req.query.limit) || 200)),
   });
+  res.json(result);
 });
 
-router.get('/exercises/:id', (req, res) => {
-  const ex = exerciseById(req.params.id);
+router.get('/exercises/:id', optionalAuth, (req, res) => {
+  const ex = getExerciseById(req.params.id, req.user?.id);
   if (!ex) throw new ApiError(404, 'Unknown exercise id.');
   res.json({ exercise: ex });
+});
+
+router.get('/exercises/:id/substitutes', optionalAuth, (req, res) => {
+  const substitutes = getExerciseSubstitutes(req.params.id, req.user?.id, {
+    equipment: req.query.equipment || null,
+    maxResults: Math.min(10, Math.max(1, Number(req.query.limit) || 6)),
+  });
+  res.json({ substitutes });
 });
 
 /* ---------------------------- workout logs ------------------------------ */
@@ -84,7 +86,7 @@ router.get('/workouts/:id', (req, res) => {
 function normaliseSets(input, userId, date) {
   const sets = Array.isArray(input) ? input : [];
   return sets.slice(0, 200).map((s, i) => {
-    const ex = exerciseById(s.exercise_id) || null;
+    const ex = getExerciseById(s.exercise_id, userId) || null;
     return {
       user_id: userId,
       date,
@@ -241,6 +243,27 @@ router.get('/next', (req, res) => {
     plan: { id: planRow.id, name: plan.meta?.name, source: plan.meta?.source, created_at: planRow.created_at },
     session: { ...session, last_performance: history },
   });
+});
+
+/* --------------------------- custom exercises --------------------------- */
+
+router.get('/custom-exercises', (req, res) => {
+  res.json({ exercises: getUserCustomExercises(req.user.id) });
+});
+
+router.post('/custom-exercises', (req, res) => {
+  try {
+    const exercise = createCustomExercise(req.user.id, req.body || {});
+    res.status(201).json({ ok: true, exercise });
+  } catch (err) {
+    throw new ApiError(400, err.message);
+  }
+});
+
+router.delete('/custom-exercises/:id', (req, res) => {
+  const deleted = deleteCustomExercise(req.user.id, req.params.id);
+  if (!deleted) throw new ApiError(404, 'Custom exercise not found.');
+  res.json({ ok: true, deleted: true });
 });
 
 export default router;

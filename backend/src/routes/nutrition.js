@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import { all, get, run, today, tx } from '../db.js';
-import { auth } from '../middleware/auth.js';
+import { auth, optionalAuth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errors.js';
 import { clamp, round } from '../services/nutrition.js';
 import { FOODS } from '../services/planEngine.js';
+import {
+  searchFoods,
+  getFoodByIdOrName,
+  createCustomFood,
+  deleteCustomFood,
+  getUserCustomFoods,
+} from '../services/foodService.js';
 import { validDate, queryDate } from '../lib/validate.js';
 
 const router = Router();
@@ -12,17 +19,19 @@ const MEALS = ['breakfast', 'lunch', 'dinner', 'snack', 'pre_workout', 'post_wor
 
 /* ----------------------------- food database ---------------------------- */
 
-router.get('/foods', (req, res) => {
-  const q = String(req.query.q || '').toLowerCase().trim();
-  const category = String(req.query.category || '').toLowerCase().trim();
-  let list = FOODS;
-  if (category) list = list.filter((f) => f.category === category);
-  if (q) list = list.filter((f) => `${f.name} ${f.tags.join(' ')} ${f.category}`.toLowerCase().includes(q));
-  res.json({
-    count: list.length,
-    foods: list.slice(0, 200),
-    categories: [...new Set(FOODS.map((f) => f.category))],
-  });
+router.get('/foods', optionalAuth, async (req, res, next) => {
+  try {
+    const result = await searchFoods({
+      query: req.query.q,
+      category: req.query.category,
+      barcode: req.query.barcode,
+      userId: req.user?.id || null,
+      limit: Math.min(200, Math.max(1, Number(req.query.limit) || 200)),
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.use(auth);
@@ -48,8 +57,7 @@ router.post('/log', (req, res) => {
   const name = String(b.food_name || '').trim().slice(0, 120);
   if (!name) throw new ApiError(400, 'food_name is required.');
 
-  const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase())
-    || FOODS.find((f) => name.toLowerCase().includes(f.name.split(',')[0].toLowerCase()));
+  const known = getFoodByIdOrName(name, req.user.id);
 
   let values;
   if (b.calories != null && Number(b.calories) > 0) {
@@ -86,7 +94,7 @@ router.post('/log-batch', (req, res) => {
     for (const item of items) {
       const name = String(item.food_name || '').trim().slice(0, 120);
       if (!name) continue;
-      const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase());
+      const known = getFoodByIdOrName(name, req.user.id);
       const values = item.calories > 0
         ? {
             grams: clamp(Number(item.grams) || 100, 1, 5000),
@@ -117,6 +125,27 @@ router.delete('/log/:id', (req, res) => {
   const { changes } = run('DELETE FROM nutrition_logs WHERE id = ? AND user_id = ?', Number(req.params.id), req.user.id);
   if (!changes) throw new ApiError(404, 'Entry not found.');
   res.json({ ok: true });
+});
+
+/* ----------------------------- custom foods ----------------------------- */
+
+router.get('/custom-foods', (req, res) => {
+  res.json({ foods: getUserCustomFoods(req.user.id) });
+});
+
+router.post('/custom-foods', (req, res) => {
+  try {
+    const food = createCustomFood(req.user.id, req.body || {});
+    res.status(201).json({ ok: true, food });
+  } catch (err) {
+    throw new ApiError(400, err.message);
+  }
+});
+
+router.delete('/custom-foods/:id', (req, res) => {
+  const deleted = deleteCustomFood(req.user.id, req.params.id);
+  if (!deleted) throw new ApiError(404, 'Custom food not found.');
+  res.json({ ok: true, deleted: true });
 });
 
 router.get('/daily', (req, res) => {
