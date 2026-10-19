@@ -13,6 +13,7 @@
     "dev": "node --no-warnings --watch src/index.js",
     "test": "node --no-warnings test/tokenBudget.test.js && node --no-warnings test/cacheKeys.test.js && node --no-warnings test/googleAuth.test.js && node --no-warnings test/smoke.test.js",
     "seed": "node scripts/seed.js",
+    "backup": "node scripts/backup.js",
     "test:unit": "node --no-warnings test/tokenBudget.test.js",
     "test:api": "node --no-warnings test/smoke.test.js"
   },
