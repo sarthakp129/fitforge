@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { all, get, run, today } from '../db.js';
+import { all, get, run, today, tx } from '../db.js';
 import { auth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errors.js';
 import { clamp, round } from '../services/nutrition.js';
@@ -81,32 +81,35 @@ router.post('/log-batch', (req, res) => {
   if (b.date !== undefined && !validDate(b.date)) throw new ApiError(400, 'date must be a real date in YYYY-MM-DD form.');
   const date = validDate(b.date) ? b.date : today();
   const items = Array.isArray(b.items) ? b.items.slice(0, 100) : [];
-  const created = [];
-  for (const item of items) {
-    const name = String(item.food_name || '').trim().slice(0, 120);
-    if (!name) continue;
-    const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase());
-    const values = item.calories > 0
-      ? {
-          grams: clamp(Number(item.grams) || 100, 1, 5000),
-          calories: round(Number(item.calories) || 0, 1),
-          protein_g: round(Number(item.protein_g) || 0, 1),
-          carbs_g: round(Number(item.carbs_g) || 0, 1),
-          fat_g: round(Number(item.fat_g) || 0, 1),
-        }
-      : known
-        ? macrosFromFood(known, item.grams ?? known.serving_g)
-        : null;
-    if (!values) continue;
-    const { lastInsertRowid } = run(
-      `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      req.user.id, date, MEALS.includes(item.meal_type) ? item.meal_type : 'snack',
-      name, values.grams, values.calories, values.protein_g, values.carbs_g, values.fat_g,
-      String(item.source || 'plan').slice(0, 20)
-    );
-    created.push(Number(lastInsertRowid));
-  }
+  const created = tx(() => {
+    const ids = [];
+    for (const item of items) {
+      const name = String(item.food_name || '').trim().slice(0, 120);
+      if (!name) continue;
+      const known = FOODS.find((f) => f.name.toLowerCase() === name.toLowerCase());
+      const values = item.calories > 0
+        ? {
+            grams: clamp(Number(item.grams) || 100, 1, 5000),
+            calories: round(Number(item.calories) || 0, 1),
+            protein_g: round(Number(item.protein_g) || 0, 1),
+            carbs_g: round(Number(item.carbs_g) || 0, 1),
+            fat_g: round(Number(item.fat_g) || 0, 1),
+          }
+        : known
+          ? macrosFromFood(known, item.grams ?? known.serving_g)
+          : null;
+      if (!values) continue;
+      const { lastInsertRowid } = run(
+        `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        req.user.id, date, MEALS.includes(item.meal_type) ? item.meal_type : 'snack',
+        name, values.grams, values.calories, values.protein_g, values.carbs_g, values.fat_g,
+        String(item.source || 'plan').slice(0, 20)
+      );
+      ids.push(Number(lastInsertRowid));
+    }
+    return ids;
+  });
   res.status(201).json({ created: created.length, ids: created });
 });
 
@@ -163,16 +166,19 @@ router.post('/copy-day', (req, res) => {
   if (!validDate(from) || !validDate(to)) throw new ApiError(400, 'from/to must be real dates in YYYY-MM-DD form.');
   const src = all('SELECT * FROM nutrition_logs WHERE user_id = ? AND date = ?', req.user.id, String(from).slice(0, 10));
   if (!src.length) throw new ApiError(404, 'Nothing logged on the source date.');
-  let n = 0;
-  for (const e of src) {
-    run(
-      `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'copied')`,
-      req.user.id, to, e.meal_type, e.food_name, e.grams,
-      e.calories, e.protein_g, e.carbs_g, e.fat_g
-    );
-    n++;
-  }
+  const n = tx(() => {
+    let count = 0;
+    for (const e of src) {
+      run(
+        `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'copied')`,
+        req.user.id, to, e.meal_type, e.food_name, e.grams,
+        e.calories, e.protein_g, e.carbs_g, e.fat_g
+      );
+      count++;
+    }
+    return count;
+  });
   res.json({ ok: true, copied: n });
 });
 
