@@ -97,7 +97,21 @@ export function parseVoiceLog(transcript, foods = []) {
     const before = text.slice(Math.max(0, at - 40), at).match(GRAMS_BEFORE_RE);
     const after = text.slice(at, at + key.length + 40).match(GRAMS_RE);
     const m = before || after;
-    const grams = m ? Math.round(Number(m[1].replace(',', '.'))) : food.serving_g;
+    let grams = food.serving_g || 100;
+    if (m) {
+      grams = Math.round(Number(m[1].replace(',', '.')));
+    } else {
+      // Check for count or serving multiplier before food, e.g. "2 eggs", "1 bowl dal", "two rotis"
+      const countMatch = text.slice(Math.max(0, at - 35), at).match(/(?:^|\s)(one|two|three|four|five|\d{1,2})\s*(?:bowls?|cups?|pieces?|slices?|servings?|plates?|rotis?|eggs?)?\s*(?:of\s+)?$/i);
+      if (countMatch) {
+        const raw = countMatch[1].toLowerCase();
+        const wordMap = { one: 1, two: 2, three: 3, four: 4, five: 5 };
+        const count = wordMap[raw] || parseInt(raw, 10);
+        if (count > 0 && count <= 20) {
+          grams = Math.round((food.serving_g || 100) * count);
+        }
+      }
+    }
     if (items.some((i) => i.food_name === food.name)) continue;
     items.push({ food_name: food.name, grams: Math.min(2000, Math.max(5, grams)), meal_type: meal, at });
   }

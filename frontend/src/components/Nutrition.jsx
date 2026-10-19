@@ -53,6 +53,11 @@ export default function Nutrition() {
   const [voiceItems, setVoiceItems] = useState(null);
   const [voiceText, setVoiceText] = useState('');
   const [micState, setMicState] = useState({ recording: false, working: false });
+  const [showWorkoutMeals, setShowWorkoutMeals] = useState(false);
+  const [quickLogText, setQuickLogText] = useState('');
+  const [modalTab, setModalTab] = useState('library');
+  const [customFoodForm, setCustomFoodForm] = useState({ name: '', brand: '', category: 'protein', serving_g: 100, kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const [savingCustomFood, setSavingCustomFood] = useState(false);
   const recorderRef = useRef(null);
   const canMic = typeof navigator !== 'undefined' && Boolean(navigator.mediaDevices?.getUserMedia);
   const speechOK = supportsSpeech();
@@ -116,8 +121,53 @@ export default function Nutrition() {
   const openAdd = (meal) => {
     setAddMeal(meal); setPicked(null); setGrams(100); setQ('');
     setManual({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+    setModalTab('library');
     setAddOpen(true);
   };
+
+  const saveCustomFood = async () => {
+    if (!customFoodForm.name.trim()) return toast('Please enter a food name.', 'warn');
+    if (!(Number(customFoodForm.kcal) >= 0 && customFoodForm.kcal !== '')) return toast('Please enter calories per serving.', 'warn');
+    setSavingCustomFood(true);
+    try {
+      const payload = {
+        name: customFoodForm.name.trim(),
+        brand: customFoodForm.brand.trim() || undefined,
+        category: customFoodForm.category || 'protein',
+        serving_g: Number(customFoodForm.serving_g) || 100,
+        kcal: Number(customFoodForm.kcal) || 0,
+        protein_g: Number(customFoodForm.protein_g) || 0,
+        carbs_g: Number(customFoodForm.carbs_g) || 0,
+        fat_g: Number(customFoodForm.fat_g) || 0,
+      };
+      const created = await api.nutrition.createCustomFood(payload);
+      toast(`Saved custom food “${payload.name}”.`, 'ok');
+      setFoods((prev) => [created.food, ...prev]);
+      setPicked(created.food);
+      setGrams(created.food.serving_g || 100);
+      setModalTab('library');
+      setCustomFoodForm({ name: '', brand: '', category: 'protein', serving_g: 100, kcal: '', protein_g: '', carbs_g: '', fat_g: '' });
+    } catch (err) {
+      handleError(err, 'Failed to save custom food.');
+    } finally {
+      setSavingCustomFood(false);
+    }
+    return undefined;
+  };
+
+  const hasWorkoutMealEntries = Boolean(
+    (daily?.by_meal?.pre_workout?.length || 0) > 0 ||
+    (daily?.by_meal?.post_workout?.length || 0) > 0
+  );
+
+  const visibleMeals = useMemo(() => {
+    return MEALS.filter((m) => {
+      if (m.id === 'pre_workout' || m.id === 'post_workout') {
+        return hasWorkoutMealEntries || showWorkoutMeals;
+      }
+      return true;
+    });
+  }, [hasWorkoutMealEntries, showWorkoutMeals]);
 
   const preview = useMemo(() => {
     if (!picked) return null;
@@ -333,25 +383,35 @@ export default function Nutrition() {
                     thickness={13}
                     color="var(--macro-calories)"
                     center={<>
-                      <div className="ring-value">{nf(totals.calories)}</div>
-                      <div className="ring-label">of {nf(t.calories)} kcal</div>
+                      <div className="ring-value" style={{ fontSize: '1.75rem', fontWeight: 800 }}>{nf(totals.calories)}</div>
+                      <div className="ring-label" style={{ fontWeight: 600, color: totals.calories > t.calories ? 'var(--ember)' : 'inherit' }}>
+                        {totals.calories <= t.calories
+                          ? `${nf(t.calories - totals.calories)} kcal left`
+                          : `${nf(totals.calories - t.calories)} kcal over`}
+                      </div>
+                      <div className="tiny muted" style={{ fontSize: '0.72rem', marginTop: 2 }}>Target: {nf(t.calories)} kcal</div>
                     </>}
                   />
-                  <div className="grid grid-2 gap-16 flex-1" style={{ minWidth: 260 }}>
-                    {[
-                      ['Protein', totals.protein_g, t.protein_g, 'teal'],
-                      ['Carbs', totals.carbs_g, t.carbs_g, 'violet'],
-                      ['Fat', totals.fat_g, t.fat_g, 'amber'],
-                      ['Foods logged', daily?.entries?.length || 0, Math.max(6, daily?.entries?.length || 0), 'ember'],
-                    ].map(([label, v, m, tone]) => (
-                      <div key={label} className="stack gap-6">
-                        <div className="row-between">
-                          <span className="eyebrow">{label}</span>
-                          <span className="mono tiny strong">{nf(v, 0)}{label !== 'Foods logged' && ` / ${nf(m)} g`}</span>
+                  <div className="stack gap-14 flex-1" style={{ minWidth: 260 }}>
+                    <div className="grid grid-3 gap-12">
+                      {[
+                        ['Protein', totals.protein_g, t.protein_g, 'teal', 'g'],
+                        ['Carbs', totals.carbs_g, t.carbs_g, 'violet', 'g'],
+                        ['Fat', totals.fat_g, t.fat_g, 'amber', 'g'],
+                      ].map(([label, v, m, tone, unit]) => (
+                        <div key={label} className="stack gap-6">
+                          <div className="row-between">
+                            <span className="eyebrow">{label}</span>
+                            <span className="mono tiny strong">{nf(v, 0)} / {nf(m)} {unit}</span>
+                          </div>
+                          <div className="bar"><div className={`bar-fill bar-${tone}`} style={{ width: `${Math.min(100, pct(v, m))}%` }} /></div>
                         </div>
-                        <div className="bar"><div className={`bar-fill bar-${tone}`} style={{ width: `${Math.min(100, pct(v, m))}%` }} /></div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <div className="row-between" style={{ padding: '8px 14px', background: 'var(--surface-2)', borderRadius: 10 }}>
+                      <span className="small muted">Foods logged today</span>
+                      <Chip tone="ghost" className="mono strong">{daily?.entries?.length || 0} item{daily?.entries?.length === 1 ? '' : 's'}</Chip>
+                    </div>
                   </div>
                   <div className="stack gap-8" style={{ minWidth: 190 }}>
                     <div className="row gap-6">
@@ -360,21 +420,6 @@ export default function Nutrition() {
                       <Button variant="ghost" size="sm" aria-label="Next day" disabled={date >= todayISO()} onClick={() => setDate(shiftDays(1, new Date(`${date}T12:00:00`)))}><Icon name="arrowRight" size={14} /></Button>
                     </div>
                     <div className="tiny muted center">{relativeDay(date)}</div>
-                    {canMic || speechOK ? (
-                      <Button
-                        variant={micState.recording ? 'danger' : 'soft'}
-                        size="sm"
-                        className={`mic-btn ${micState.recording ? 'rec-on' : ''}`}
-                        onClick={toggleVoiceLog}
-                        disabled={micState.working}
-                        aria-label={micState.recording ? 'Stop recording meal' : 'Log a meal by voice'}
-                        title={speechOK && !preferWhisper()
-                          ? 'Say e.g. “150 grams of chicken and 200 grams of rice for lunch” (browser dictation)'
-                          : 'Record and transcribe with Whisper — say e.g. “150 grams of chicken and 200 grams of rice for lunch”'}
-                      >
-                        {micState.working ? <Spinner size={13} /> : micState.recording ? <span className="eq" aria-hidden="true"><i /><i /><i /></span> : <Icon name="mic" size={14} />} Voice log
-                      </Button>
-                    ) : null}
                     <Button variant="ember" size="sm" onClick={() => openAdd(guessMeal())}><Icon name="plus" size={14} /> Add food</Button>
                     <Button variant="soft" size="sm" onClick={applyPlanToToday}><Icon name="spark" size={14} /> Apply meal plan</Button>
                     <Button variant="ghost" size="sm" onClick={copyYesterday}><Icon name="refresh" size={14} /> Copy previous day</Button>
@@ -383,8 +428,61 @@ export default function Nutrition() {
               </Card>
             </Reveal>
 
+            {/* Quick Natural Language & Spoken Meal Composer */}
+            <Reveal>
+              <Card className="stack gap-10" style={{ background: 'var(--surface-1)' }}>
+                <div className="row-between" style={{ flexWrap: 'wrap', gap: 6 }}>
+                  <div className="row gap-8">
+                    <Icon name="spark" size={15} style={{ color: 'var(--ember)' }} />
+                    <span className="strong small">Quick meal composer</span>
+                  </div>
+                  <span className="tiny muted">Type or speak (e.g. “2 rotis, 1 bowl dal, 150g chicken breast”)</span>
+                </div>
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (quickLogText.trim()) {
+                      processTranscript(quickLogText.trim());
+                      setQuickLogText('');
+                    }
+                  }}
+                  className="row gap-8"
+                  style={{ flexWrap: 'wrap' }}
+                >
+                  <Input
+                    value={quickLogText}
+                    onChange={(e) => setQuickLogText(e.target.value)}
+                    placeholder="e.g. 2 rotis, 1 bowl dal, 150g chicken breast, 2 eggs for lunch…"
+                    className="flex-1"
+                    style={{ minWidth: 240 }}
+                    aria-label="Natural language meal input"
+                  />
+                  <Button type="submit" variant="ember" size="sm" disabled={!quickLogText.trim()}>
+                    <Icon name="check" size={14} /> Review & Log
+                  </Button>
+                  {canMic || speechOK ? (
+                    <Button
+                      type="button"
+                      variant={micState.recording ? 'danger' : 'soft'}
+                      size="sm"
+                      className={`mic-btn ${micState.recording ? 'rec-on' : ''}`}
+                      onClick={toggleVoiceLog}
+                      disabled={micState.working}
+                      aria-label={micState.recording ? 'Stop recording meal' : 'Log a meal by voice'}
+                      title={speechOK && !preferWhisper()
+                        ? 'Say e.g. “150 grams of chicken and 200 grams of rice for lunch” (browser dictation)'
+                        : 'Record and transcribe with Whisper — say e.g. “150 grams of chicken and 200 grams of rice for lunch”'}
+                    >
+                      {micState.working ? <Spinner size={13} /> : micState.recording ? <span className="eq" aria-hidden="true"><i /><i /><i /></span> : <Icon name="mic" size={14} />} Voice log
+                    </Button>
+                  ) : null}
+                </form>
+              </Card>
+            </Reveal>
+
+            {/* Meal sections */}
             <div className="grid grid-2">
-              {MEALS.map((m) => {
+              {visibleMeals.map((m) => {
                 const entries = daily?.by_meal?.[m.id] || [];
                 const kcal = entries.reduce((s2, e) => s2 + e.calories, 0);
                 const protein = entries.reduce((s2, e) => s2 + e.protein_g, 0);
@@ -403,7 +501,10 @@ export default function Nutrition() {
                         {entries.map((e) => (
                           <div key={e.id} className="row-between gap-10 small" style={{ padding: '7px 0', borderBottom: '1px solid var(--line-2)' }}>
                             <div className="flex-1">
-                              <div className="strong" style={{ fontSize: '0.9rem' }}>{e.food_name}</div>
+                              <div className="strong" style={{ fontSize: '0.9rem' }}>
+                                {e.food_name}
+                                {e.is_custom ? <Chip tone="amber" className="tiny" style={{ marginLeft: 6, fontSize: '0.65rem' }}>Custom</Chip> : null}
+                              </div>
                               <div className="tiny muted mono">{nf(e.grams)} g · P {nf(e.protein_g, 1)} · C {nf(e.carbs_g, 1)} · F {nf(e.fat_g, 1)}</div>
                             </div>
                             <div className="row gap-8">
@@ -418,6 +519,19 @@ export default function Nutrition() {
                 );
               })}
             </div>
+
+            {!hasWorkoutMealEntries && (
+              <div className="row center" style={{ marginTop: 8 }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowWorkoutMeals((s) => !s)}
+                >
+                  <Icon name={showWorkoutMeals ? 'close' : 'plus'} size={13} />
+                  {showWorkoutMeals ? 'Hide pre/post-workout meal sections' : 'Show pre/post-workout meal sections'}
+                </Button>
+              </div>
+            )}
           </>
         )}
 
@@ -658,99 +772,214 @@ export default function Nutrition() {
         subtitle={`${MEALS.find((m) => m.id === addMeal)?.label || 'Snack'} · ${relativeDay(date)}`}
         wide
       >
-        <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+        <div className="row-between" style={{ flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+          <Segmented
+            value={modalTab}
+            onChange={setModalTab}
+            options={[
+              { value: 'library', label: 'Food Library' },
+              { value: 'custom', label: '+ Create Custom Food' },
+            ]}
+          />
           <SelectMenu width={168} value={addMeal} onChange={setAddMeal} options={MEALS.map((m) => ({ value: m.id, label: m.label }))} />
-          <Input placeholder="Search the food database…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" style={{ minWidth: 180 }} aria-label="Search foods" />
         </div>
 
-        <div className="row gap-6" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
-          {[
-            { id: 'all', label: 'All Foods' },
-            { id: 'north', label: 'North Indian', icon: 'spark' },
-            { id: 'south', label: 'South Indian', icon: 'leaf' },
-            { id: 'protein', label: 'High Protein', icon: 'bolt' },
-            { id: 'staple', label: 'Staples', icon: 'target' },
-          ].map((c) => (
-            <Chip
-              key={c.id}
-              onClick={() => setCuisineFilter(c.id)}
-              tone={cuisineFilter === c.id ? 'ember' : 'ghost'}
-              style={{ cursor: 'pointer', fontWeight: cuisineFilter === c.id ? 700 : 500 }}
-            >
-              {c.icon && <Icon name={c.icon} size={12} style={{ marginRight: 2 }} />}
-              {c.label}
-            </Chip>
-          ))}
-        </div>
+        {modalTab === 'custom' ? (
+          <form
+            onSubmit={(e) => { e.preventDefault(); saveCustomFood(); }}
+            className="stack gap-12"
+          >
+            <div className="grid grid-2">
+              <Field label="Food name" hint="required">
+                <Input
+                  value={customFoodForm.name}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, name: e.target.value })}
+                  placeholder="e.g. Sattu drink, Greek yogurt cup"
+                  required
+                />
+              </Field>
+              <Field label="Brand / Restaurant" hint="optional">
+                <Input
+                  value={customFoodForm.brand}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, brand: e.target.value })}
+                  placeholder="e.g. Epigamia, Homemade"
+                />
+              </Field>
+            </div>
+            <div className="grid grid-3">
+              <Field label="Category">
+                <SelectMenu
+                  value={customFoodForm.category}
+                  onChange={(val) => setCustomFoodForm({ ...customFoodForm, category: val })}
+                  options={[
+                    { value: 'protein', label: 'Protein' },
+                    { value: 'grain', label: 'Grain' },
+                    { value: 'dairy', label: 'Dairy' },
+                    { value: 'vegetable', label: 'Vegetable' },
+                    { value: 'fruit', label: 'Fruit' },
+                    { value: 'snack', label: 'Snack' },
+                    { value: 'beverage', label: 'Beverage' },
+                    { value: 'meal', label: 'Full Meal' },
+                  ]}
+                />
+              </Field>
+              <Field label="Serving size" hint="in grams/ml">
+                <Input
+                  className="input-num"
+                  type="number"
+                  min="1"
+                  value={customFoodForm.serving_g}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, serving_g: e.target.value })}
+                />
+              </Field>
+              <Field label="Calories (kcal)" hint="per serving">
+                <Input
+                  className="input-num"
+                  type="number"
+                  min="0"
+                  value={customFoodForm.kcal}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, kcal: e.target.value })}
+                  required
+                />
+              </Field>
+            </div>
+            <div className="grid grid-3">
+              <Field label="Protein (g)" hint="per serving">
+                <Input
+                  className="input-num"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={customFoodForm.protein_g}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, protein_g: e.target.value })}
+                />
+              </Field>
+              <Field label="Carbs (g)" hint="per serving">
+                <Input
+                  className="input-num"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={customFoodForm.carbs_g}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, carbs_g: e.target.value })}
+                />
+              </Field>
+              <Field label="Fat (g)" hint="per serving">
+                <Input
+                  className="input-num"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={customFoodForm.fat_g}
+                  onChange={(e) => setCustomFoodForm({ ...customFoodForm, fat_g: e.target.value })}
+                />
+              </Field>
+            </div>
+            <div className="row gap-10" style={{ justifyContent: 'flex-end', marginTop: 10 }}>
+              <Button type="button" variant="ghost" onClick={() => setModalTab('library')}>Cancel</Button>
+              <Button type="submit" variant="ember" loading={savingCustomFood} disabled={savingCustomFood}>
+                <Icon name="check" size={15} /> Save & Select Food
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <div className="row gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+              <Input placeholder="Search built-in, custom, or verified database foods…" value={q} onChange={(e) => setQ(e.target.value)} className="flex-1" style={{ minWidth: 180 }} aria-label="Search foods" />
+            </div>
 
-        <div className="grid grid-side">
-          <div className="stack gap-6" style={{ maxHeight: '42vh', overflowY: 'auto' }}>
-            {displayedFoods.map((f) => {
-              const b = cuisineBadge(f);
-              return (
-                <button
-                  key={f.name}
-                  className="ex-row"
-                  style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: picked?.name === f.name ? 'var(--ember-soft)' : undefined }}
-                  onClick={() => { setPicked(f); setGrams(f.serving_g); setManual((m) => ({ ...m, food_name: f.name })); }}
+            <div className="row gap-6" style={{ flexWrap: 'wrap', marginBottom: 14 }}>
+              {[
+                { id: 'all', label: 'All Foods' },
+                { id: 'north', label: 'North Indian', icon: 'spark' },
+                { id: 'south', label: 'South Indian', icon: 'leaf' },
+                { id: 'protein', label: 'High Protein', icon: 'bolt' },
+                { id: 'staple', label: 'Staples', icon: 'target' },
+              ].map((c) => (
+                <Chip
+                  key={c.id}
+                  onClick={() => setCuisineFilter(c.id)}
+                  tone={cuisineFilter === c.id ? 'ember' : 'ghost'}
+                  style={{ cursor: 'pointer', fontWeight: cuisineFilter === c.id ? 700 : 500 }}
                 >
-                  <div>
-                    <div className="ex-name" style={{ fontSize: '0.9rem' }}>
-                      {f.name}
-                      {b && (
-                        <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
-                          {b.iconName && <Icon name={b.iconName} size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
-                          {b.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="ex-meta"><span>per 100 g: <b>{f.kcal}</b> kcal · P <b>{f.protein_g}</b> · C <b>{f.carbs_g}</b> · F <b>{f.fat_g}</b></span></div>
-                  </div>
-                  <Chip tone="ghost">{f.serving_g} g</Chip>
-                </button>
-              );
-            })}
-            {!displayedFoods.length && <Empty>No foods match “{q || cuisineFilter}”. Enter it manually on the right.</Empty>}
-          </div>
+                  {c.icon && <Icon name={c.icon} size={12} style={{ marginRight: 2 }} />}
+                  {c.label}
+                </Chip>
+              ))}
+            </div>
 
-          <div className="stack gap-12">
-            {picked ? (
-              <>
-                <SliderField label={picked.name} unit=" g" min={5} max={600} step={5} value={Number(grams) || 100} onChange={setGrams} hint="cooked weight of what you ate" />
-                <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
-                  {[50, 100, 150, 200, 250].map((g) => (
-                    <Chip key={g} onClick={() => setGrams(g)} active={Number(grams) === g}>{g} g</Chip>
-                  ))}
-                </div>
-                <div className="tiny muted">Macros = per-100 g values × this portion.</div>
-                {preview && (
-                  <Card className="grid grid-4" style={{ background: 'var(--surface-2)', border: 0 }}>
-                    {[['kcal', preview.calories], ['P', preview.protein_g], ['C', preview.carbs_g], ['F', preview.fat_g]].map(([l, v]) => (
-                      <div key={l} className="stack gap-2">
-                        <span className="eyebrow">{l}</span>
-                        <span className="mono strong" style={{ fontSize: '1.1rem' }}>{nf(v, l === 'kcal' ? 0 : 1)}</span>
+            <div className="grid grid-side">
+              <div className="stack gap-6" style={{ maxHeight: '42vh', overflowY: 'auto' }}>
+                {displayedFoods.map((f) => {
+                  const b = cuisineBadge(f);
+                  return (
+                    <button
+                      key={f.name}
+                      className="ex-row"
+                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer', background: picked?.name === f.name ? 'var(--ember-soft)' : undefined }}
+                      onClick={() => { setPicked(f); setGrams(f.serving_g); setManual((m) => ({ ...m, food_name: f.name })); }}
+                    >
+                      <div>
+                        <div className="ex-name" style={{ fontSize: '0.9rem' }}>
+                          {f.name}
+                          {f.is_custom ? <Chip tone="amber" className="tiny" style={{ marginLeft: 6, fontSize: '0.65rem' }}>Custom</Chip> : null}
+                          {f.is_external ? <Chip tone="teal" className="tiny" style={{ marginLeft: 6, fontSize: '0.65rem' }}>OFF Verified</Chip> : null}
+                          {b && (
+                            <span className="chip chip-ghost tiny" style={{ marginLeft: 6, fontSize: '0.68rem', padding: '1px 6px' }}>
+                              {b.iconName && <Icon name={b.iconName} size={11} style={{ marginRight: 3, verticalAlign: 'middle' }} />}
+                              {b.label}
+                            </span>
+                          )}
+                        </div>
+                        <div className="ex-meta"><span>per 100 g: <b>{f.kcal}</b> kcal · P <b>{f.protein_g}</b> · C <b>{f.carbs_g}</b> · F <b>{f.fat_g}</b></span></div>
                       </div>
-                    ))}
-                  </Card>
+                      <Chip tone="ghost">{f.serving_g} g</Chip>
+                    </button>
+                  );
+                })}
+                {!displayedFoods.length && <Empty>No foods match “{q || cuisineFilter}”. Enter it manually on the right or click “+ Create Custom Food”.</Empty>}
+              </div>
+
+              <div className="stack gap-12">
+                {picked ? (
+                  <>
+                    <SliderField label={picked.name} unit=" g" min={5} max={600} step={5} value={Number(grams) || 100} onChange={setGrams} hint="cooked weight of what you ate" />
+                    <div className="row gap-6" style={{ flexWrap: 'wrap' }}>
+                      {[50, 100, 150, 200, 250].map((g) => (
+                        <Chip key={g} onClick={() => setGrams(g)} active={Number(grams) === g}>{g} g</Chip>
+                      ))}
+                    </div>
+                    <div className="tiny muted">Macros = per-100 g values × this portion.</div>
+                    {preview && (
+                      <Card className="grid grid-4" style={{ background: 'var(--surface-2)', border: 0 }}>
+                        {[['kcal', preview.calories], ['P', preview.protein_g], ['C', preview.carbs_g], ['F', preview.fat_g]].map(([l, v]) => (
+                          <div key={l} className="stack gap-2">
+                            <span className="eyebrow">{l}</span>
+                            <span className="mono strong" style={{ fontSize: '1.1rem' }}>{nf(v, l === 'kcal' ? 0 : 1)}</span>
+                          </div>
+                        ))}
+                      </Card>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <div className="chip chip-teal" style={{ alignSelf: 'flex-start' }}>
+                      <Icon name="bolt" size={12} /> Totals for THIS portion — not per 100 g
+                    </div>
+                    <Field label="Food name"><Input value={manual.food_name} onChange={(e) => setManual({ ...manual, food_name: e.target.value })} placeholder="e.g. Homemade biryani" /></Field>
+                    <div className="grid grid-2">
+                      <Field label="Calories" hint="as eaten"><Input className="input-num" type="number" min="0" value={manual.calories} onChange={(e) => setManual({ ...manual, calories: e.target.value })} /></Field>
+                      <Field label="Protein (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.protein_g} onChange={(e) => setManual({ ...manual, protein_g: e.target.value })} /></Field>
+                      <Field label="Carbs (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.carbs_g} onChange={(e) => setManual({ ...manual, carbs_g: e.target.value })} /></Field>
+                      <Field label="Fat (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.fat_g} onChange={(e) => setManual({ ...manual, fat_g: e.target.value })} /></Field>
+                    </div>
+                  </>
                 )}
-              </>
-            ) : (
-              <>
-                <div className="chip chip-teal" style={{ alignSelf: 'flex-start' }}>
-                  <Icon name="bolt" size={12} /> Totals for THIS portion — not per 100 g
-                </div>
-                <Field label="Food name"><Input value={manual.food_name} onChange={(e) => setManual({ ...manual, food_name: e.target.value })} placeholder="e.g. Homemade biryani" /></Field>
-                <div className="grid grid-2">
-                  <Field label="Calories" hint="as eaten"><Input className="input-num" type="number" min="0" value={manual.calories} onChange={(e) => setManual({ ...manual, calories: e.target.value })} /></Field>
-                  <Field label="Protein (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.protein_g} onChange={(e) => setManual({ ...manual, protein_g: e.target.value })} /></Field>
-                  <Field label="Carbs (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.carbs_g} onChange={(e) => setManual({ ...manual, carbs_g: e.target.value })} /></Field>
-                  <Field label="Fat (g)"><Input className="input-num" type="number" min="0" step="0.5" value={manual.fat_g} onChange={(e) => setManual({ ...manual, fat_g: e.target.value })} /></Field>
-                </div>
-              </>
-            )}
-            <Button variant="ember" block onClick={addEntry}><Icon name="check" size={15} /> Log it</Button>
-          </div>
-        </div>
+                <Button variant="ember" block onClick={addEntry}><Icon name="check" size={15} /> Log it</Button>
+              </div>
+            </div>
+          </>
+        )}
       </Modal>
 
       {/* ------------------------- voice confirm modal ----------------------- */}
