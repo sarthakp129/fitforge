@@ -257,7 +257,7 @@ export default function Dashboard() {
                   title="No active plan yet"
                   action={<Button variant="ember" size="sm" onClick={() => navigate('/training')} style={{ marginTop: 10 }}>Generate my plan</Button>}
                 >
-                  One click builds a complete split from your profile — the AI personalises it if your key is configured.
+                  One click builds a complete split from your profile — personalized to your exact training experience and goals.
                 </Empty>
               )}
             </Card>
@@ -334,7 +334,7 @@ export default function Dashboard() {
                 <CardHead
                   eyebrow="Coach read-out"
                   title="This week"
-                  right={insight?.source && insight.source !== 'ai' ? <Chip tone="ghost">offline</Chip> : undefined}
+                  right={<Chip tone="ember">FitForge Coach</Chip>}
                 />
                 <p className="small" style={{ lineHeight: 1.65 }}>{insight?.advice || 'Log a few sessions and the coach will read the week back to you.'}</p>
                 {insight?.watch && <div className="chip chip-warn"><Icon name="bolt" size={13} /> {insight.watch}</div>}

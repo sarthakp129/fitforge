@@ -75,19 +75,19 @@ const TESTIMONIALS = [
     role: 'Strength & Conditioning · 38',
     avatar: 'DS',
     highlight: '+42 kg Total on The Big 3',
-    quote: 'The 2ms local engine runs faster than any cloud app. When I logged a mild shoulder impingement, the generator instantly adapted my horizontal presses without breaking volume.',
+    quote: 'The instant plan generator runs faster than any cloud app. When I logged a mild shoulder impingement, the system seamlessly adapted my horizontal presses without breaking volume.',
     stats: '24 weeks · 96 logged sessions',
   },
 ];
 
 const FAQS = [
   {
-    q: 'Does FitForge work 100% offline without sending my data to third parties?',
-    a: 'Yes, completely. FitForge uses a standalone SQLite database stored locally on your own machine or server. The core training and nutrition split generator runs deterministically in pure JavaScript with zero tokens and zero external network calls. Your weigh-ins, logs, and body metrics never leave your possession.',
+    q: 'Does FitForge protect my privacy without sharing my health data?',
+    a: 'Yes, completely. FitForge uses a private, standalone database stored directly on your own instance or server. Your workouts, weigh-ins, logs, and body metrics never get sold to advertisers or third-party brokers. You have complete data ownership.',
   },
   {
-    q: 'How does the AI Coach work if I don’t configure an API key?',
-    a: 'FitForge is built with a dual-engine architecture. Without any API key, the local rules engine generates periodized multi-week workout splits, progressive overload calculations, and exact macronutrient grams. When an optional free Groq LPU API key is provided, the AI coach activates to provide contextual natural language training answers with built-in token budget protection.',
+    q: 'How does the FitForge AI Coach work?',
+    a: 'FitForge combines deterministic sports-science algorithms with an adaptive AI Coach. It analyzes your training logs, recovery state, and nutritional targets to deliver tailored advice on progressive overload, form cues, and meal substitutions around the clock.',
   },
   {
     q: 'Can I tailor workouts around joint injuries or limited home gym equipment?',
@@ -335,7 +335,7 @@ export default function Landing() {
               <Chip tone="ember"><Icon name="dumbbell" size={12} /> {counts.exercises} coached exercises</Chip>
               <Chip tone="teal"><Icon name="flame" size={12} /> {counts.foods} everyday foods</Chip>
               <Chip><Icon name="check" size={12} /> Private — runs on your server</Chip>
-              <Chip tone="ghost"><Icon name="bolt" size={12} /> 2ms Zero-token local engine</Chip>
+              <Chip tone="ghost"><Icon name="bolt" size={12} /> Instant 2ms Plan Generation</Chip>
             </div>
           </div>
 
@@ -781,15 +781,14 @@ export default function Landing() {
                 <span className="brand-mark" style={{ background: 'var(--ember-soft)', marginBottom: 14 }}>
                   <Icon name="bolt" size={18} style={{ color: 'var(--ember)' }} />
                 </span>
-                <h3>Dual-Engine Architecture (Deterministic + Groq LPU)</h3>
+                <h3>Intelligent Adaptive Coaching</h3>
                 <p className="small muted" style={{ lineHeight: 1.6, marginTop: 8 }}>
-                  A pure deterministic JavaScript rule-engine generates comprehensive training splits, periodized volume,
-                  and exact Mifflin-St Jeor macros in 2 milliseconds with <b>zero tokens consumed</b>. When a Groq API key is supplied,
-                  our LPU governor activates to deliver intelligent coaching and adaptive substitutions without ever stalling.
+                  Science-backed exercise programming paired with 24/7 intelligent coaching. Get instant plan generation,
+                  real-time exercise substitutions for joint safety, and personalized nutritional guidance that adapts to your daily progress.
                 </p>
                 <div className="row gap-8" style={{ marginTop: 16 }}>
-                  <Chip tone="ok">100% Offline Capable</Chip>
-                  <Chip tone="ghost">2ms Cold Start</Chip>
+                  <Chip tone="ok">Always Available</Chip>
+                  <Chip tone="ghost">Instant Response</Chip>
                 </div>
               </div>
             </Reveal>
@@ -799,13 +798,12 @@ export default function Landing() {
                 <span className="brand-mark" style={{ background: 'var(--teal-soft)', marginBottom: 14 }}>
                   <Icon name="chart" size={18} style={{ color: 'var(--teal)' }} />
                 </span>
-                <h3>Sliding-Window Token Governor</h3>
+                <h3>High-Throughput Smart Caching</h3>
                 <p className="small muted" style={{ lineHeight: 1.6, marginTop: 8 }}>
-                  Hardware-inspired rate limiter tracks TPM (Tokens Per Minute), RPM, and RPD in a FIFO sliding window.
-                  Automated cache signatures prevent duplicate prompts and eliminate 429 quota spikes.
+                  Zero-latency response engine with smart caching for frequent fitness queries. Experience instant workout recalibrations and meal analyses with rock-solid server reliability.
                 </p>
                 <div className="row gap-8" style={{ marginTop: 16 }}>
-                  <Chip tone="teal">6,000 TPM Protected</Chip>
+                  <Chip tone="teal">Ultra-Fast Execution</Chip>
                 </div>
               </div>
             </Reveal>
@@ -1145,7 +1143,7 @@ export default function Landing() {
                 Built for athletes who track real numbers and want honest data ownership.
               </p>
               <div className="row gap-6 tiny" style={{ color: 'var(--ok-text)', marginTop: 4 }}>
-                <span className="dot dot-ok dot-live" /> Local Engine: Ready
+                <span className="dot dot-ok dot-live" /> System Status: Operational
               </div>
             </div>
 
@@ -1154,7 +1152,7 @@ export default function Landing() {
               <button type="button" className="footer-link" onClick={() => scrollTo('features')}>Three Core Promises</button>
               <button type="button" className="footer-link" onClick={() => scrollTo('calculator')}>Live Macro Calculator</button>
               <button type="button" className="footer-link" onClick={() => scrollTo('exercises')}>102 Exercise Catalog</button>
-              <button type="button" className="footer-link" onClick={() => scrollTo('architecture')}>Dual Engine Specs</button>
+              <button type="button" className="footer-link" onClick={() => scrollTo('architecture')}>Platform Architecture</button>
               <button type="button" className="footer-link" onClick={() => scrollTo('reviews')}>Athlete Stories</button>
               <button type="button" className="footer-link" onClick={() => scrollTo('faq')}>FAQ</button>
             </div>
@@ -1165,7 +1163,7 @@ export default function Landing() {
               <span className="tiny muted">Express 5.1 REST API</span>
               <span className="tiny muted">React 18 + Vite</span>
               <span className="tiny muted">SQLite 3 (WAL mode)</span>
-              <span className="tiny muted">Groq LPU Governor</span>
+              <span className="tiny muted">FitForge Intelligence</span>
             </div>
 
             <div className="stack gap-8">

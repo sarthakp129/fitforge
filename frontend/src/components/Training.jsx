@@ -503,7 +503,7 @@ export default function Training() {
                 <GenerationStatus state={genState} />
                 {!plan && !loading && (
                   <div className="tiny muted">
-                    Nothing generated yet. With no API key this still produces a complete, evidence-based plan from the local engine.
+                    Nothing generated yet. Generate your customized, evidence-based training split with a single tap.
                   </div>
                 )}
               </Card>
