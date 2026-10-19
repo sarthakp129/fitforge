@@ -139,8 +139,14 @@ export const api = {
     config: () => request('/api/auth/config', { auth: false }),
     register: (payload) => request('/api/auth/register', { method: 'POST', body: payload, auth: false }),
     login: (payload) => request('/api/auth/login', { method: 'POST', body: payload, auth: false }),
-    google: (credential) => request('/api/auth/google', { method: 'POST', body: { credential }, auth: false }),
-    linkGoogle: (credential) => request('/api/auth/google/link', { method: 'POST', body: { credential } }),
+    google: (payload) => {
+      const body = typeof payload === 'string' ? { credential: payload } : payload;
+      return request('/api/auth/google', { method: 'POST', body, auth: false });
+    },
+    linkGoogle: (payload) => {
+      const body = typeof payload === 'string' ? { credential: payload } : payload;
+      return request('/api/auth/google/link', { method: 'POST', body });
+    },
     unlinkGoogle: () => request('/api/auth/google/unlink', { method: 'POST', body: {} }),
     me: () => request('/api/auth/me'),
     patchMe: (payload) => request('/api/auth/me', { method: 'PATCH', body: payload }),

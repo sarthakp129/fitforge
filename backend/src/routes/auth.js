@@ -89,8 +89,8 @@ router.post('/login', rateLimit({ windowMs: 15 * 60_000, max: 8 }), async (req, 
  * - If email exists with local password and NOT linked, rejects with 409 to prevent silent takeover.
  */
 router.post('/google', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res) => {
-  const { credential } = req.body || {};
-  const googleUser = await verifyGoogleToken(credential);
+  const { credential, access_token } = req.body || {};
+  const googleUser = await verifyGoogleToken({ credential, access_token });
 
   // 1. Check if user already exists by Google Subject ID
   let user = get('SELECT * FROM users WHERE google_id = ?', googleUser.sub);
@@ -140,8 +140,8 @@ router.post('/google', rateLimit({ windowMs: 60_000, max: 12 }), async (req, res
 
 /** Link Google identity to the currently authenticated account */
 router.post('/google/link', auth, async (req, res) => {
-  const { credential } = req.body || {};
-  const googleUser = await verifyGoogleToken(credential);
+  const { credential, access_token } = req.body || {};
+  const googleUser = await verifyGoogleToken({ credential, access_token });
 
   const existingLink = get('SELECT id FROM users WHERE google_id = ?', googleUser.sub);
   if (existingLink && existingLink.id !== req.user.id) {

@@ -19,15 +19,16 @@ export const CardHead = ({ title, subtitle, right, eyebrow }) => (
 );
 
 export const Button = ({
-  children, variant = 'primary', size = '', block = false, loading = false, icon, disabled, ...rest
+  children, variant = 'primary', size = '', block = false, loading = false, icon, disabled, className = '', ...rest
 }) => {
   const cls = {
     primary: 'btn', ember: 'btn btn-ember', ghost: 'btn btn-ghost',
     soft: 'btn btn-soft', danger: 'btn btn-danger', icon: 'btn btn-ghost btn-icon',
   }[variant] || 'btn';
+  const fullClass = [cls, size ? `btn-${size}` : '', block ? 'btn-block' : '', className].filter(Boolean).join(' ');
   return (
     <button
-      className={`${cls} ${size ? `btn-${size}` : ''} ${block ? 'btn-block' : ''}`}
+      className={fullClass}
       disabled={disabled || loading}
       aria-busy={loading ? 'true' : undefined}
       {...rest}

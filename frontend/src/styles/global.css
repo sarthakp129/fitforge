@@ -132,6 +132,56 @@ b, strong { font-weight: 640; }
 .btn-icon.btn-sm { min-height: 34px; width: 34px; height: 34px; border-radius: 10px; }
 @media (pointer: coarse) { .btn, .btn-sm { min-height: 44px; } .btn-icon { min-height: 44px; width: 44px; height: 44px; } }
 
+/* -------------------------- Google Auth Button --------------------------- */
+.google-sign-in-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-height: 52px !important;
+  padding: 12px 24px !important;
+  border-radius: var(--radius-pill) !important;
+  border: var(--card-border, 0) !important;
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: inherit !important;
+  font-weight: 640 !important;
+  font-size: 0.98rem !important;
+  box-shadow: var(--sh-raise-sm) !important;
+  cursor: pointer !important;
+  user-select: none !important;
+  transition: box-shadow var(--t-fast) var(--ease), transform var(--t-fast) var(--ease), background var(--t-fast) var(--ease) !important;
+}
+.google-sign-in-btn:hover:not(:disabled) {
+  box-shadow: var(--sh-raise) !important;
+  transform: translateY(-1px) !important;
+  background: var(--glass-hover) !important;
+  color: var(--text) !important;
+}
+.google-sign-in-btn:active:not(:disabled) {
+  box-shadow: var(--sh-press) !important;
+  transform: translateY(1px) !important;
+}
+.google-sign-in-btn:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+.google-sign-in-btn .google-icon-svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  display: block;
+}
+.google-btn-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
 /* --------------------------------- inputs --------------------------------
    Inputs are WELLS: pressed into the material = "this receives". */
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
