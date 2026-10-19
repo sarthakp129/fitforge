@@ -130,21 +130,26 @@ export class TokenBudget {
         await sleep(w + 40);
       }
       this._prune();
-      this.tokenWindow.push({ ts: Date.now(), tokens });
+      const entry = { ts: Date.now(), tokens };
+      this.tokenWindow.push(entry);
       this.requestWindow.push(Date.now());
       this.day.count += 1;
-      return { waited };
+      return { waited, reservation: entry };
     });
   }
 
   /** Replace the reservation estimate with the real usage reported by Groq. */
-  commit(actualTokens, estimate) {
+  commit(actualTokens, estimate, reservation = null) {
     if (!Number.isFinite(actualTokens)) return;
     const delta = actualTokens - (estimate || 0);
     if (!delta || !this.tokenWindow.length) return;
-    // apply the correction to the most recent reservation
-    const last = this.tokenWindow[this.tokenWindow.length - 1];
-    last.tokens = Math.max(0, last.tokens + delta);
+    // apply the correction to the specific reservation or fallback to most recent
+    const target = reservation && this.tokenWindow.includes(reservation)
+      ? reservation
+      : this.tokenWindow[this.tokenWindow.length - 1];
+    if (target) {
+      target.tokens = Math.max(0, target.tokens + delta);
+    }
   }
 
   /** Learn the real limits from Groq response headers. */

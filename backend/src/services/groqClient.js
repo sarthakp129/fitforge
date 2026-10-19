@@ -153,7 +153,7 @@ export async function complete(p) {
   const estimate = estimateTokens(promptText) + (maxTokens || 500);
   const started = Date.now();
 
-  const { waited } = await tokenBudget.reserve(estimate, {
+  const { waited, reservation } = await tokenBudget.reserve(estimate, {
     onWait: (waitMs, snap) => onProgress?.({ phase: 'throttled', waitMs, budget: snap }),
   });
   if (waited > 500) onProgress?.({ phase: 'reserved', waitMs: waited });
@@ -182,7 +182,7 @@ export async function complete(p) {
           completion_tokens: out.usage.completion_tokens ?? estimateTokens(out.content),
           total_tokens: out.usage.total_tokens ?? estimate,
         };
-        tokenBudget.commit(usage.total_tokens, estimate);
+        tokenBudget.commit(usage.total_tokens, estimate, reservation);
         tokenBudget.totalServed += 1;
         logUsage({ userId, endpoint, model: out.model, usage, status: 'ok', cached: false, latencyMs: Date.now() - started });
 

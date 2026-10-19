@@ -68,6 +68,23 @@ await test('reserve() books the estimate and commit() reconciles it', async () =
   assert.equal(b.totalServed, 0, 'totalServed is bumped by the client, not the budget');
 });
 
+await test('concurrent reservations reconcile specifically to their own slots', async () => {
+  const b = new TokenBudget({ tokensPerMinute: 2000, requestsPerMinute: 30, requestsPerDay: 900 });
+  const r1 = await b.reserve(500);
+  const r2 = await b.reserve(300);
+  assert.equal(b.tokensUsed(), 800);
+  // r1 finishes out of order with 600 tokens (delta +100)
+  b.commit(600, 500, r1.reservation);
+  assert.equal(r1.reservation.tokens, 600);
+  assert.equal(r2.reservation.tokens, 300);
+  assert.equal(b.tokensUsed(), 900);
+  // r2 finishes with 200 tokens (delta -100)
+  b.commit(200, 300, r2.reservation);
+  assert.equal(r1.reservation.tokens, 600);
+  assert.equal(r2.reservation.tokens, 200);
+  assert.equal(b.tokensUsed(), 800);
+});
+
 await test('daily quota exhaustion rejects immediately instead of hanging', async () => {
   const b = new TokenBudget({ tokensPerMinute: 1000, requestsPerMinute: 30, requestsPerDay: 2 });
   await b.reserve(10);
