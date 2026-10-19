@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { all, get, run, today } from '../db.js';
+import { all, get, run, today, tx } from '../db.js';
 import { auth } from '../middleware/auth.js';
 import { ApiError } from '../middleware/errors.js';
 import { clamp, round, estimatedOneRM, macroTargets } from '../services/nutrition.js';
@@ -302,46 +302,109 @@ router.get('/export.csv', (req, res) => {
   res.send(lines.join('\n'));
 });
 
+const IMPORT_LIMITS = { metrics: 1000, workouts: 500, setsPerWorkout: 200, nutrition: 5000, totalRows: 10000 };
+const finite = (value, min, max, field) => {
+  if (value === undefined || value === null || value === '') return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < min || n > max) throw new ApiError(400, `${field} must be a number between ${min} and ${max}.`);
+  return n;
+};
+const text = (value, max, field, required = false) => {
+  if (value === undefined || value === null) {
+    if (required) throw new ApiError(400, `${field} is required.`);
+    return '';
+  }
+  if (typeof value !== 'string' || value.length > max) throw new ApiError(400, `${field} must be text up to ${max} characters.`);
+  return value.trim();
+};
+const importDate = (value, field = 'date') => {
+  if (!validDate(value)) throw new ApiError(400, `${field} must be a real date in YYYY-MM-DD form.`);
+  return value;
+};
+
+/**
+ * Import policy: metrics merge by date; exact workout and food rows are skipped.
+ * The whole import is atomic, so a malformed row never creates a partial backup.
+ */
 router.post('/import', (req, res) => {
   const data = req.body || {};
-  if (!data || typeof data !== 'object') throw new ApiError(400, 'Expected an exported FitForge JSON payload.');
+  if (!data || Array.isArray(data) || typeof data !== 'object') throw new ApiError(400, 'Expected an exported FitForge JSON payload.');
+  for (const key of ['metrics', 'workouts', 'nutrition']) {
+    if (data[key] !== undefined && !Array.isArray(data[key])) throw new ApiError(400, `${key} must be an array.`);
+  }
+  const metrics = data.metrics || [];
+  const workouts = data.workouts || [];
+  const nutrition = data.nutrition || [];
+  if (metrics.length > IMPORT_LIMITS.metrics || workouts.length > IMPORT_LIMITS.workouts || nutrition.length > IMPORT_LIMITS.nutrition) {
+    throw new ApiError(413, 'Import exceeds the allowed row limit.');
+  }
+  const setCount = workouts.reduce((sum, w) => sum + (Array.isArray(w?.sets) ? w.sets.length : 0), 0);
+  if (setCount + metrics.length + workouts.length + nutrition.length > IMPORT_LIMITS.totalRows) throw new ApiError(413, 'Import has too many total rows.');
   const uid = req.user.id;
-  let counts = { metrics: 0, workouts: 0, sets: 0, nutrition: 0 };
+  const counts = { metrics: 0, workouts: 0, sets: 0, nutrition: 0, skipped: 0 };
 
-  for (const m of data.metrics || []) {
+  tx(() => {
+  for (const m of metrics) {
+    if (!m || typeof m !== 'object') throw new ApiError(400, 'Every metric must be an object.');
+    const date = importDate(m.date);
+    const weight = finite(m.weight_kg, 30, 300, 'weight_kg');
+    const fat = finite(m.body_fat_pct, 3, 60, 'body_fat_pct');
+    const waist = finite(m.waist_cm, 40, 200, 'waist_cm');
+    if (weight === null && fat === null && waist === null) throw new ApiError(400, 'Each metric needs at least one measurement.');
     run(
       `INSERT INTO metrics (user_id, date, weight_kg, body_fat_pct, waist_cm, notes) VALUES (?,?,?,?,?,?)
-       ON CONFLICT(user_id, date) DO UPDATE SET weight_kg = COALESCE(excluded.weight_kg, weight_kg)`,
-      uid, m.date, m.weight_kg ?? null, m.body_fat_pct ?? null, m.waist_cm ?? null, m.notes || ''
+       ON CONFLICT(user_id, date) DO UPDATE SET weight_kg = COALESCE(excluded.weight_kg, weight_kg), body_fat_pct = COALESCE(excluded.body_fat_pct, body_fat_pct), waist_cm = COALESCE(excluded.waist_cm, waist_cm), notes = COALESCE(NULLIF(excluded.notes, ''), notes)`,
+      uid, date, weight, fat, waist, text(m.notes, 300, 'metric notes')
     );
     counts.metrics++;
   }
-  for (const w of data.workouts || []) {
+  for (const w of workouts) {
+    if (!w || typeof w !== 'object' || !Array.isArray(w.sets || [])) throw new ApiError(400, 'Every workout must include a sets array.');
+    if (w.sets.length > IMPORT_LIMITS.setsPerWorkout) throw new ApiError(413, 'A workout has too many sets.');
+    const date = importDate(w.date);
+    const name = text(w.name || 'Workout', 80, 'workout name', true) || 'Workout';
+    const focus = text(w.focus || 'full_body', 30, 'workout focus') || 'full_body';
+    const duration = finite(w.duration_s, 0, 43200, 'duration_s') ?? 0;
+    const calories = finite(w.calories, 0, 5000, 'calories') ?? 0;
+    const rpe = finite(w.rpe, 1, 10, 'rpe');
+    // Replaying an export is idempotent for simple imported workouts.
+    if (get('SELECT id FROM workout_logs WHERE user_id = ? AND date = ? AND name = ? AND focus = ? AND duration_s = ? LIMIT 1', uid, date, name, focus, duration)) { counts.skipped++; continue; }
     const { lastInsertRowid } = run(
       `INSERT INTO workout_logs (user_id, date, name, focus, duration_s, calories, rpe, notes) VALUES (?,?,?,?,?,?,?,?)`,
-      uid, w.date, w.name || 'Workout', w.focus || 'full_body', w.duration_s || 0, w.calories || 0, w.rpe ?? null, w.notes || ''
+      uid, date, name, focus, duration, calories, rpe, text(w.notes, 1000, 'workout notes')
     );
     counts.workouts++;
-    for (const s of w.sets || []) {
+    for (const s of w.sets) {
+      if (!s || typeof s !== 'object') throw new ApiError(400, 'Every set must be an object.');
       run(
         `INSERT INTO sets (log_id, user_id, date, exercise_id, exercise_name, set_number, reps, weight_kg, rpe, tempo, rest_s, is_warmup)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
-        Number(lastInsertRowid), uid, s.date || w.date, s.exercise_id || 'unknown', s.exercise_name || 'Exercise',
-        s.set_number || 1, s.reps || 0, s.weight_kg || 0, s.rpe ?? null, s.tempo || '', s.rest_s || 90, s.is_warmup ? 1 : 0
+        Number(lastInsertRowid), uid, s.date ? importDate(s.date, 'set date') : date, text(s.exercise_id || 'unknown', 100, 'exercise_id', true), text(s.exercise_name || 'Exercise', 120, 'exercise_name', true),
+        Math.round(finite(s.set_number, 1, 99, 'set_number') ?? 1), Math.round(finite(s.reps, 0, 200, 'reps') ?? 0), finite(s.weight_kg, 0, 600, 'weight_kg') ?? 0, finite(s.rpe, 1, 10, 'set rpe'), text(s.tempo, 12, 'tempo'), Math.round(finite(s.rest_s, 0, 900, 'rest_s') ?? 90), s.is_warmup ? 1 : 0
       );
       counts.sets++;
     }
   }
-  for (const n of data.nutrition || []) {
+  for (const n of nutrition) {
+    if (!n || typeof n !== 'object') throw new ApiError(400, 'Every nutrition row must be an object.');
+    const date = importDate(n.date);
+    const meal = ['breakfast', 'lunch', 'dinner', 'snack', 'pre_workout', 'post_workout'].includes(n.meal_type) ? n.meal_type : 'snack';
+    const food = text(n.food_name, 120, 'food_name', true);
+    const grams = finite(n.grams, 0, 5000, 'grams') ?? 0;
+    const calories = finite(n.calories, 0, 10000, 'calories') ?? 0;
+    const protein = finite(n.protein_g, 0, 1000, 'protein_g') ?? 0;
+    const carbs = finite(n.carbs_g, 0, 2000, 'carbs_g') ?? 0;
+    const fat = finite(n.fat_g, 0, 1000, 'fat_g') ?? 0;
+    if (get('SELECT id FROM nutrition_logs WHERE user_id=? AND date=? AND meal_type=? AND food_name=? AND grams=? AND calories=? LIMIT 1', uid, date, meal, food, grams, calories)) { counts.skipped++; continue; }
     run(
       `INSERT INTO nutrition_logs (user_id, date, meal_type, food_name, grams, calories, protein_g, carbs_g, fat_g, source)
        VALUES (?,?,?,?,?,?,?,?,?,'imported')`,
-      uid, n.date, n.meal_type || 'snack', n.food_name, n.grams || 0, n.calories || 0,
-      n.protein_g || 0, n.carbs_g || 0, n.fat_g || 0
+      uid, date, meal, food, grams, calories, protein, carbs, fat
     );
     counts.nutrition++;
   }
-  res.json({ ok: true, counts });
+  });
+  res.json({ ok: true, counts, policy: 'Metrics merge by date; exact workouts and food rows are skipped.' });
 });
 
 export default router;
