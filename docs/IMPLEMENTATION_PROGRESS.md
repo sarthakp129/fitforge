@@ -99,3 +99,20 @@
 - Frontend test suite: SSR render tests across all views and 24 live JSDOM E2E journeys — **all passing**.
 - All changes committed and pushed to `main` branch.
 
+## Phase 9 completed (1-Click Demo & Vercel Deployment Resolution)
+
+- Added permanent, prominent **"Demo"** button in navigation header, hero section, and access card:
+  - Bypasses manual credential entry and automatically logs in with 1 click.
+  - Implemented dedicated `POST /api/auth/demo` endpoint with automatic on-demand user seeding.
+  - Implemented client-side offline mock fallback in `loginDemo()` store action so the app renders even on static-only preview deployments.
+- Resolved Vercel deployment and rendering issues:
+  - Replaced invalid `"services"` schema in root [vercel.json](file:///home/ric/Videos/fitforge/vercel.json) with official Vercel v2 schema.
+  - Added SPA fallback rewrites (`/(.*) -> /index.html`) in root [vercel.json](file:///home/ric/Videos/fitforge/vercel.json) and [frontend/vercel.json](file:///home/ric/Videos/fitforge/frontend/vercel.json) to eliminate 404 errors on deep linking and page refresh.
+  - Created root [package.json](file:///home/ric/Videos/fitforge/package.json) with Node `>=22.5.0` engine specification and monorepo build scripts.
+  - Added serverless entrypoint [api/index.js](file:///home/ric/Videos/fitforge/api/index.js) delegating to the Express application.
+  - Dynamic CORS handling permitting `*.vercel.app` preview deployments and localhost.
+  - Set `credentials: 'include'` in API client for cross-domain cookie and session persistence.
+- Verified in live browser subagent: 1-click Demo button triggers instant login and transitions directly to Dashboard.
+- All commits pushed to `origin/main`.
+
+
