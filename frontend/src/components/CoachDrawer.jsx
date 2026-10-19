@@ -21,6 +21,18 @@ export default function CoachDrawer() {
   const fabRef = useRef(null);
   const panelRef = useRef(null);
 
+  // Global Cmd+J / Ctrl+J listener to toggle coach
+  useEffect(() => {
+    const handleGlobalKey = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'j') {
+        e.preventDefault();
+        setOpen((o) => !o);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [setOpen]);
+
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') setOpen(false); };
@@ -61,9 +73,9 @@ export default function CoachDrawer() {
         type="button"
         ref={fabRef}
         className={`fab ${open ? 'fab-open listening' : ''}`}
-        aria-label={open ? 'Close coach' : 'Ask the coach'}
+        aria-label={open ? 'Close coach (shortcut: Command J or Control J)' : 'Ask FitForge Coach (shortcut: Command J or Control J)'}
         aria-expanded={open}
-        title={open ? 'Close coach' : 'Ask the coach'}
+        title={open ? 'Close coach (Esc or ⌘J)' : 'Ask FitForge Coach (⌘J)'}
         onClick={() => setOpen((o) => !o)}
       >
         <Icon name={open ? 'close' : 'spark'} size={22} />
@@ -78,7 +90,10 @@ export default function CoachDrawer() {
                 <Icon name="spark" size={14} style={{ color: 'var(--ember)' }} />
               </span>
               <div className="flex-1">
-                <div className="strong small">Coach</div>
+                <div className="row gap-6" style={{ alignItems: 'center' }}>
+                  <span className="strong small">Coach</span>
+                  <span className="kbd" style={{ fontSize: '0.68rem', padding: '1px 5px' }}>⌘J</span>
+                </div>
                 <div className="tiny muted">Answers use your numbers.</div>
               </div>
               <Button

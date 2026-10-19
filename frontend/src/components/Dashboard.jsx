@@ -145,8 +145,8 @@ export default function Dashboard() {
             <Button variant="ghost" size="sm" onClick={openWeighIn}>
               <Icon name="plus" size={14} /> Log weigh-in
             </Button>
-            <Button variant="soft" size="sm" onClick={() => setCoachOpen(true)}>
-              <Icon name="spark" size={14} /> Ask coach
+            <Button variant="soft" size="sm" onClick={() => setCoachOpen(true)} title="Press ⌘J or Ctrl+J anywhere" aria-label="Ask coach (shortcut: Command J or Control J)">
+              <Icon name="spark" size={14} /> Ask coach <span className="kbd" aria-hidden="true" style={{ fontSize: '0.72rem', marginLeft: 4 }}>⌘J</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setCmdOpen(true)} title="Press ⌘K or Ctrl+K anywhere" aria-label="Search (shortcut: Command K or Control K)">
               <Icon name="search" size={14} /> Search <span className="kbd" aria-hidden="true" style={{ fontSize: '0.72rem', marginLeft: 4 }}>⌘K</span>
@@ -205,7 +205,28 @@ export default function Dashboard() {
               unit={`/ ${nf(target.calories)} kcal`}
               icon={<Icon name="target" size={16} style={{ color: 'var(--violet)' }} />}
               sub={overUnder(totals, target)}
-            />
+            >
+              <div className="stack gap-4" style={{ marginTop: 4 }}>
+                <div
+                  className="bar"
+                  style={{ height: 4 }}
+                  role="progressbar"
+                  aria-valuenow={Math.round(totals.calories || 0)}
+                  aria-valuemin={0}
+                  aria-valuemax={Math.round(target.calories || 2000)}
+                  aria-label="Calories consumed today"
+                >
+                  <div
+                    className="bar-fill bar-ember"
+                    style={{ width: `${Math.min(100, pct(totals.calories, target.calories))}%` }}
+                  />
+                </div>
+                <div className="row-between tiny muted">
+                  <span>Protein: <strong style={{ color: 'var(--teal)' }}>{totals.protein_g || 0}g</strong> / {target.protein_g}g</span>
+                  <span>{pct(totals.calories, target.calories)}%</span>
+                </div>
+              </div>
+            </Stat>
           </Reveal>
         </div>
 

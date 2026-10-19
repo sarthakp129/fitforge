@@ -47,7 +47,7 @@ b, strong { font-weight: 640; }
 .cursor-fx { display: none !important; }
 
 /* --------------------------------- layout -------------------------------- */
-.shell { min-height: 100vh; padding-bottom: 72px; animation: page-in 240ms var(--ease-out); }
+.shell { min-height: 100vh; padding-bottom: 124px; animation: page-in 240ms var(--ease-out); }
 @keyframes page-in { from { opacity: 0; transform: translateY(10px); } }
 
 .wrap { width: min(var(--content-w), 100% - 44px); margin-inline: auto; }
@@ -90,8 +90,10 @@ b, strong { font-weight: 640; }
 .grid-side > .reveal > .card {
   height: 100%;
 }
-@media (max-width: 1000px) {
+@media (max-width: 1040px) {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
   .grid-3, .grid-side { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
@@ -137,7 +139,23 @@ b, strong { font-weight: 640; }
 .btn-ghost { background: var(--bg); box-shadow: var(--sh-raise-sm); color: var(--muted); }
 .btn-ghost:hover:not(:disabled) { color: var(--text); box-shadow: var(--sh-raise); }
 .btn-ghost:active:not(:disabled) { box-shadow: var(--sh-press); transform: translateY(1px); }
-.btn-soft { background: var(--bg); box-shadow: var(--sh-raise-sm); }
+.btn-soft {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: var(--sh-raise-sm);
+  border: 1px solid var(--line-2);
+}
+.btn-soft:hover:not(:disabled) {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--sh-raise);
+  border-color: var(--line);
+  transform: translateY(-1px);
+}
+.btn-soft:active:not(:disabled) {
+  box-shadow: var(--sh-press);
+  transform: translateY(1px);
+}
 .btn-danger { background: var(--bg); color: var(--rose-text); box-shadow: var(--sh-raise-sm); }
 .btn-danger:hover:not(:disabled) { color: var(--rose); box-shadow: var(--sh-raise); }
 .btn-danger:active:not(:disabled) { box-shadow: var(--sh-press); transform: translateY(1px); }
@@ -225,6 +243,24 @@ b, strong { font-weight: 640; }
 .hint { font-size: 0.84rem; color: var(--faint); }
 .field-error { font-size: 0.86rem; color: var(--rose-text); }
 
+input[type="date"].input {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  cursor: pointer;
+}
+input[type="date"].input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.3) sepia(1) saturate(5) hue-rotate(345deg);
+  opacity: 0.85;
+  transition: opacity var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+}
+input[type="date"].input::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+  transform: scale(1.12);
+}
+
 /* Chrome paints autofilled inputs acid yellow; re-carve the well instead */
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
@@ -254,12 +290,18 @@ b, strong { font-weight: 640; }
 .chip-btn:active { box-shadow: var(--sh-press); transform: translateY(0); }
 .chip-btn:focus-visible { outline: 2px solid var(--ember); outline-offset: 2px; }
 /* the selected pebble is pressed INTO the material, with an ember seat-ring:
-   same language as tiles (raised -> selected = inset) */
+   high-contrast active state adhering to ui-ux-pro-max guidelines */
 .chip-btn.chip-active, .chip-active {
-  box-shadow: var(--sh-inset-sm), inset 0 0 0 1.5px color-mix(in srgb, var(--ember) 55%, transparent);
-  background: var(--surface-2); color: var(--text); transform: none;
+  box-shadow: var(--sh-inset-sm), inset 0 0 0 2px var(--ember);
+  background: color-mix(in srgb, var(--ember) 14%, var(--surface));
+  color: var(--ember-text);
+  font-weight: 700;
+  transform: none;
 }
-.chip-active:hover { box-shadow: var(--sh-inset-sm), inset 0 0 0 1.5px color-mix(in srgb, var(--ember) 55%, transparent); }
+.chip-active:hover {
+  box-shadow: var(--sh-inset-sm), inset 0 0 0 2px var(--ember);
+  background: color-mix(in srgb, var(--ember) 18%, var(--surface));
+}
 
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); flex: none; }
 .dot-ember { background: var(--ember); }
@@ -297,7 +339,7 @@ b, strong { font-weight: 640; }
 /* --------------------------------- hero ---------------------------------- */
 .hero { padding: calc(var(--nav-h) + 72px) 0 56px; position: relative; }
 .hero-grid { display: grid; gap: 44px; align-items: center; }
-@media (min-width: 1000px) { .hero-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); } }
+@media (min-width: 860px) { .hero-grid { grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); } }
 .hero-badge {
   display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;
   border-radius: var(--radius-pill); background: var(--bg); box-shadow: var(--sh-inset-sm);
@@ -502,18 +544,21 @@ b, strong { font-weight: 640; }
 
 /* --------------------------- coach FAB + drawer --------------------------- */
 .fab {
-  position: fixed; right: 22px; bottom: calc(22px + env(safe-area-inset-bottom));
-  width: 60px; height: 60px; border-radius: 50%; border: 0; cursor: pointer;
+  position: fixed; right: 26px; bottom: calc(26px + env(safe-area-inset-bottom));
+  width: 58px; height: 58px; border-radius: 50%; border: 0; cursor: pointer;
   background: var(--btn-primary-bg); color: var(--btn-primary-fg);
   display: grid; place-items: center; box-shadow: var(--btn-primary-glow); z-index: 65;
   transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
 }
-.fab:hover { transform: translateY(-2px) scale(1.03); }
+.fab:hover { transform: translateY(-2px) scale(1.04); box-shadow: var(--btn-primary-glow), 0 6px 20px rgba(232, 72, 31, .4); }
 .fab:active { transform: translateY(1px); box-shadow: var(--sh-press); }
 .fab.fab-open { opacity: 0; pointer-events: none; transform: scale(0.75); }
 @media (max-width: 900px) {
+  .shell {
+    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+  }
   .fab {
-    bottom: calc(84px + env(safe-area-inset-bottom));
+    bottom: calc(86px + env(safe-area-inset-bottom));
     right: 18px;
     width: 52px;
     height: 52px;
@@ -868,6 +913,10 @@ input[type="range"].slider:focus-visible { outline: 2px solid var(--ember); outl
 .catalog-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--sh-raise);
+}
+.catalog-card:focus-visible {
+  outline: 2px solid var(--ember);
+  outline-offset: 3px;
 }
 .catalog-card-header {
   display: flex;

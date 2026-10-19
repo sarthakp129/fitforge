@@ -100,7 +100,7 @@ export const Segmented = ({ options, value, onChange, size = '' }) => (
   </div>
 );
 
-export const Stat = ({ label, value, unit, sub, tone = '', icon }) => (
+export const Stat = ({ label, value, unit, sub, tone = '', icon, children }) => (
   <Card hover className="stack gap-8" style={{ padding: 18 }}>
     <div className="row-between">
       <span className="eyebrow">{label}</span>
@@ -113,6 +113,7 @@ export const Stat = ({ label, value, unit, sub, tone = '', icon }) => (
       {unit && <span className="small muted strong">{unit}</span>}
     </div>
     {sub && <div className="tiny muted">{sub}</div>}
+    {children}
   </Card>
 );
 

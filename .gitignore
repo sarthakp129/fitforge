@@ -10,9 +10,13 @@ build/
 
 # local database & uploads
 backend/data/
+frontend/data/
+data/
 *.db
 *.db-shm
 *.db-wal
+*.secret
+test-results/
 
 # logs & os noise
 *.log
